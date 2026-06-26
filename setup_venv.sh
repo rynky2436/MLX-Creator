@@ -19,6 +19,11 @@ uv pip install --no-deps "git+https://github.com/Blaizzy/mlx-video.git"
 uv pip install tqdm "opencv-python>=4.12.0.88" "Pillow>=10.3.0" \
   imageio imageio-ffmpeg ftfy "rich>=14.2.0" mlx-vlm
 
+echo "→ extra image engines (vendored, torch-free): SD3/3.5 (DiffusionKit) + Qwen-Image (mflux)"
+# DiffusionKit needs beartype; mflux needs platformdirs/piexif/toml/matplotlib.
+# (The engines themselves are vendored under vendor/ — only their small deps here.)
+uv pip install beartype platformdirs piexif toml matplotlib
+
 echo "→ verifying torch-free…"
 python -c "import importlib.util as u; assert not u.find_spec('torch'), 'TORCH PRESENT!'; print('OK: no torch')"
 echo "Done. Launch with ./run.sh"
