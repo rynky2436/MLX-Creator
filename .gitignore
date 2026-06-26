@@ -14,3 +14,8 @@ vendor/**/.git/
 # misc
 .DS_Store
 *.log
+
+# packaging build artifacts (regenerable)
+packaging/build/
+packaging/dmg_stage/
+packaging/*.dmg
