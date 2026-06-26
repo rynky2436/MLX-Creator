@@ -102,8 +102,8 @@ def generate(
     prompt: str,
     lyrics: str = "",
     duration: float = 30.0,
-    steps: int = 20,
-    guidance: float = 1.0,
+    steps: int = 27,
+    guidance: float = 15.0,
     shift: float = 3.0,
     vocal_language: str = "unknown",
     seed: Optional[int] = None,
@@ -115,6 +115,8 @@ def generate(
 ) -> dict:
     if lm_size not in _PLANNER_DIRS or not _PLANNER_DIRS[lm_size].exists():
         lm_size = "0.6B"  # fall back if the chosen planner isn't downloaded
+    if guidance <= 1.0 and "turbo" not in (model_id or "").lower():
+        guidance = 15.0  # guidance_scale<=1 disables CFG -> beatless "noise" (turbo is distilled for low CFG)
     _point_planners_local()  # re-assert local paths (robust to startup ordering)
     if on_stage:
         on_stage("loading model")

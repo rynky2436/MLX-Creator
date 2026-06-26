@@ -137,8 +137,8 @@ class MusicRequest(BaseModel):
     prompt: str = Field(..., min_length=1)
     lyrics: str = ""
     duration: float = 30.0
-    steps: int = 20
-    guidance: float = 1.0
+    steps: int = 27
+    guidance: float = 15.0
     shift: float = 3.0
     vocal_language: str = "unknown"
     seed: int | None = None
