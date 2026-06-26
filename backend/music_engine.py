@@ -111,6 +111,7 @@ def generate(
     model_id: str = "ACE-Step1.5-MLX",
     on_stage: Optional[Callable[[str], None]] = None,
     should_cancel: Optional[Callable[[], None]] = None,
+    title: str = "",
 ) -> dict:
     if lm_size not in _PLANNER_DIRS or not _PLANNER_DIRS[lm_size].exists():
         lm_size = "0.6B"  # fall back if the chosen planner isn't downloaded
@@ -153,7 +154,9 @@ def generate(
     audio_i16 = (np.clip(audio, -1, 1) * 32767).astype(np.int16)
 
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    fname = f"acestep_{stamp}_{int(t0)}.wav"
+    import re
+    slug = re.sub(r"[^\w\-]+", "_", (title or "").strip()).strip("_")[:60]
+    fname = f"{slug}_{stamp}.wav" if slug else f"acestep_{stamp}_{int(t0)}.wav"
     out_path = OUTPUTS / fname
     wavfile.write(str(out_path), int(last.sample_rate), audio_i16)
 
@@ -162,6 +165,7 @@ def generate(
 
     return {
         "filename": fname,
+        "title": (title or "").strip() or slug or "untitled",
         "path": str(out_path),
         "prompt": prompt,
         "lyrics": lyrics,

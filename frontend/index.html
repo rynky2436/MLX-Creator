@@ -189,6 +189,8 @@
     <div class="panel" id="panel-music">
       <label>Model</label>
       <select id="m_model"></select>
+      <label>Track title</label>
+      <input id="m_title" placeholder="untitled" />
       <label>Style / prompt</label>
       <textarea id="m_prompt" placeholder="upbeat synthwave, driving bassline, retro drums…"></textarea>
       <label>Lyrics <span style="font-weight:400">(blank = instrumental)</span></label>
@@ -502,11 +504,15 @@ function renderJob(j){
   let media="";
   if(stat==="done"&&j.result&&!install){
     const url="/outputs/"+j.result.filename;
-    media = video
+    const player = video
       ? `<video controls preload="metadata" src="${url}" style="width:100%;margin-top:10px;border-radius:8px;max-height:320px"></video>`
       : music
       ? `<audio controls preload="none" src="${url}" style="width:100%;margin-top:10px"></audio>`
       : `<img src="${url}" onclick="openLB('${url}')" style="margin-top:10px;max-height:240px;border-radius:8px;cursor:pointer"/>`;
+    const ext=j.result.filename.split('.').pop();
+    const expName=music ? ((j.result.title||'untitled')+'.'+ext) : j.result.filename;
+    media = player +
+      `<a class="jbtn" href="${url}" download="${esc(expName)}" style="margin-top:8px;display:inline-block;text-decoration:none">⬇ Export</a>`;
   }
   const kind=install?"install":video?"video":music?"music":"image";
   const actions = (stat==="queued"||stat==="running")
@@ -593,7 +599,7 @@ $("#i_btn").onclick=async()=>{
 
 $("#m_btn").onclick=async()=>{
   const body={prompt:$("#m_prompt").value.trim(),lyrics:$("#m_lyrics").value,
-    model:$("#m_model").value,
+    model:$("#m_model").value,title:$("#m_title").value.trim(),
     duration:+$("#m_duration").value,steps:+$("#m_steps").value,
     guidance:+$("#m_guidance").value,shift:+$("#m_shift").value,
     vocal_language:$("#m_lang").value,lm_size:$("#m_lm").value,

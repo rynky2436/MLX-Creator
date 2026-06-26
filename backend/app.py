@@ -135,6 +135,7 @@ class MusicRequest(BaseModel):
     seed: int | None = None
     lm_size: str = "0.6B"
     model: str = "ACE-Step1.5-MLX"
+    title: str = ""
 
 
 class VideoRequest(BaseModel):
@@ -230,7 +231,7 @@ def worker() -> None:
                     vocal_language=job["vocal_language"], seed=job["seed"],
                     lm_size=job.get("lm_size", "0.6B"),
                     model_id=job.get("model", "ACE-Step1.5-MLX"), on_stage=on_stage,
-                    should_cancel=should_cancel,
+                    should_cancel=should_cancel, title=job.get("title", ""),
                 )
             elif job["kind"] == "video":
                 ensure_only_loaded("wan", job.get("model", "Wan2.2-TI2V-5B-MLX"))
@@ -337,8 +338,8 @@ async def api_generate_music(req: MusicRequest):
         "progress": 0.0, "prompt": req.prompt, "lyrics": req.lyrics,
         "duration": req.duration, "steps": req.steps, "guidance": req.guidance,
         "shift": req.shift, "vocal_language": req.vocal_language, "seed": req.seed,
-        "lm_size": req.lm_size, "model": req.model, "width": 0, "height": 0,
-        "created_at": time.time(),
+        "lm_size": req.lm_size, "model": req.model, "title": req.title,
+        "width": 0, "height": 0, "created_at": time.time(),
     }
     JOB_Q.put(job_id)
     emit({"type": "job", "job": JOBS[job_id]})
