@@ -287,6 +287,9 @@
         drive if you're low on disk. Takes effect after restarting the app.</div>
       <label>Disk</label>
       <div class="hint" id="set_disk">—</div>
+      <label>Memory</label>
+      <button class="ibtn secondary" id="set_free" style="width:100%">Unload model · free RAM</button>
+      <div class="hint" id="set_freenote">The active model stays in RAM for fast re-runs. Unload it to free memory — it reloads on the next generation.</div>
     </div>
   </section>
 
@@ -754,6 +757,12 @@ async function loadSettings(){
       <button class="ibtn secondary" style="margin-top:8px" onclick="uninstallModel('${m.id}',this)">Delete</button>
     </div>`).join("");
 }
+$('#set_free').onclick=async()=>{
+  const b=$('#set_free'); b.disabled=true; b.textContent='Freeing…';
+  try{ await fetch('/api/free',{method:'POST'}); $('#set_freenote').textContent='✓ Model unloaded — RAM freed. It reloads on your next generation.'; }
+  catch(e){ $('#set_freenote').textContent='Could not free memory.'; }
+  b.disabled=false; b.textContent='Unload model · free RAM';
+};
 $('#set_save').onclick=async()=>{
   const dir=$('#set_dir').value.trim(); if(!dir) return;
   const r=await (await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({models_dir:dir})})).json();

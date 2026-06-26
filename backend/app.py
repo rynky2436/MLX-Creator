@@ -52,6 +52,24 @@ def ensure_only_loaded(engine: str, model: str) -> None:
         pass
     _LOADED["key"] = key
 
+
+def free_memory() -> None:
+    """Unload every resident model and return MLX's buffer pool to the OS.
+    The next generation reloads its model on demand."""
+    for eng in (flux_engine, sd35_engine, qwen_engine, music_engine, video_engine):
+        try:
+            eng.unload()
+        except Exception:
+            pass
+    try:
+        (mx.clear_cache if hasattr(mx, "clear_cache") else mx.metal.clear_cache)()
+    except Exception:
+        pass
+    import gc
+    gc.collect()
+    _LOADED["key"] = None
+
+
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS = ROOT / "outputs"
 FRONTEND = ROOT / "frontend"
@@ -398,6 +416,12 @@ async def api_uninstall(req: dict):
     freed = _dir_gb(target)
     shutil.rmtree(target)
     return {"ok": True, "freed_gb": freed}
+
+
+@app.post("/api/free")
+async def api_free():
+    free_memory()
+    return {"ok": True}
 
 
 @app.post("/api/install_base")
