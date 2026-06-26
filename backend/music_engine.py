@@ -31,9 +31,19 @@ _PLANNER_DIRS = {
     "0.6B": MODELS / "acestep-5Hz-lm-0.6B",
     "4B": MODELS / "acestep-5Hz-lm-4B",
 }
-for _size, _dir in _PLANNER_DIRS.items():
-    if _dir.exists():
+
+
+def _point_planners_local() -> None:
+    """Always resolve the 5Hz planners to their local folders rather than the
+    upstream HF repo ids. Unconditional (not gated on existence at import) so it
+    works offline no matter when the server started or when the planner was
+    downloaded — whether the file is present is checked at load time, not here.
+    """
+    for _size, _dir in _PLANNER_DIRS.items():
         LMConfig._STANDALONE_MODEL_IDS[_size] = str(_dir)
+
+
+_point_planners_local()
 
 # The planner computes chain-of-thought metadata (bpm/key/genre/structure) but
 # only prints it. Wrap generate_audio_codes to capture it for the UI.
@@ -103,6 +113,7 @@ def generate(
 ) -> dict:
     if lm_size not in _PLANNER_DIRS or not _PLANNER_DIRS[lm_size].exists():
         lm_size = "0.6B"  # fall back if the chosen planner isn't downloaded
+    _point_planners_local()  # re-assert local paths (robust to startup ordering)
     if on_stage:
         on_stage("loading model")
     t_load0 = time.time()
