@@ -105,7 +105,7 @@
   .mcard .mauth{font-size:11px;color:var(--mut)}
   .mcard .mmeta{font-size:11px;color:var(--mut);display:flex;gap:10px;flex-wrap:wrap;margin-top:2px}
   .cbadge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;align-self:flex-start;text-transform:uppercase;letter-spacing:.4px}
-  .cbadge.dropin,.cbadge.lora{color:var(--ok);background:rgba(62,207,142,.13)}
+  .cbadge.dropin{color:var(--ok);background:rgba(62,207,142,.13)}
   .cbadge.convert,.cbadge.maybe{color:#f5b342;background:rgba(245,179,66,.13)}
   .cbadge.unsupported{color:var(--err);background:rgba(255,107,107,.12)}
   .ibtn{margin-top:6px;padding:8px;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px;
@@ -246,23 +246,16 @@
 
     <!-- MODELS (browse/install) -->
     <div class="panel" id="panel-models">
-      <label>Source</label>
-      <div class="chips" id="srcChips">
-        <div class="chip on" data-src="huggingface">HuggingFace</div>
-        <div class="chip" data-src="civitai">Civitai (LoRA)</div>
-      </div>
-      <div id="modalityWrap">
-        <label>Type</label>
-        <select id="b_modality">
-          <option value="image">Image</option>
-          <option value="audio">Audio</option>
-          <option value="video">Video</option>
-        </select>
-      </div>
-      <label>Search</label>
+      <label>Type</label>
+      <select id="b_modality">
+        <option value="image">Image</option>
+        <option value="audio">Audio</option>
+        <option value="video">Video</option>
+      </select>
+      <label>Search HuggingFace</label>
       <input id="b_query" placeholder="e.g. flux, wan, ace-step…" />
       <button class="gen" id="b_btn">Search</button>
-      <div class="hint">HuggingFace shows MLX models only. Badges: <b style="color:var(--ok)">drop-in</b> = installs &amp; runs · <b>convert/unsupported</b> = not loadable here.</div>
+      <div class="hint">Searches HuggingFace. Badges: <b style="color:var(--ok)">drop-in</b> = installs &amp; runs · <b>maybe</b> = verify on install · <b>needs-torch / unsupported</b> = won't load here.</div>
     </div>
 
     <!-- ASSETS (your generations) -->
@@ -310,7 +303,7 @@
     <div id="modelsSection" style="display:none">
       <h3 id="browseTitle">Search results</h3>
       <div class="grid" id="browseGrid"></div>
-      <div class="empty" id="browseEmpty">Search HuggingFace or Civitai above.</div>
+      <div class="empty" id="browseEmpty">Search HuggingFace above.</div>
       <h3 style="margin-top:24px">Installed</h3>
       <div class="grid" id="installedGrid"></div>
     </div>
@@ -411,39 +404,29 @@ async function loadInstalled(){
 }
 
 // ---- browse / install ----
-let browseSrc="huggingface";
-document.querySelectorAll("#srcChips .chip").forEach(c=>{
-  c.onclick=()=>{
-    document.querySelectorAll("#srcChips .chip").forEach(x=>x.classList.remove("on"));
-    c.classList.add("on"); browseSrc=c.dataset.src;
-    $("#modalityWrap").style.display = browseSrc==="civitai"?"none":"block";
-    doBrowse();
-  };
-});
 $("#b_btn").onclick=doBrowse;
 $("#b_query").addEventListener("keydown",e=>{if(e.key==="Enter")doBrowse();});
 
 async function doBrowse(){
   const mod=$("#b_modality").value, q=$("#b_query").value.trim();
   $("#browseTitle").textContent="Searching…";
-  const url=`/api/browse?source=${browseSrc}&modality=${mod}&q=${encodeURIComponent(q)}`;
+  const url=`/api/browse?source=huggingface&modality=${mod}&q=${encodeURIComponent(q)}`;
   let items=[]; try{items=await (await fetch(url)).json();}catch(e){}
   $("#browseEmpty").style.display=items.length?"none":"block";
-  $("#browseTitle").textContent=`${items.length} result${items.length===1?'':'s'} — ${browseSrc==='civitai'?'Civitai LoRAs':'HuggingFace MLX'}`;
+  $("#browseTitle").textContent=`${items.length} result${items.length===1?'':'s'} — HuggingFace`;
   $("#browseGrid").innerHTML=items.map(renderBrowseCard).join("");
 }
 
 function renderBrowseCard(r){
   const compat=r.compat||"unknown";
-  const installable = ["drop-in","lora","maybe"].includes(compat);
+  const installable = ["drop-in","maybe"].includes(compat);
   const cls = compat==="drop-in"?"dropin":compat;
-  const thumb = r.thumb?`<img class="mthumb" src="${r.thumb}" loading="lazy"/>`:"";
   const size = r.size_gb?`${r.size_gb}GB`:"";
   const dl = r.downloads?`↓${r.downloads.toLocaleString()}`:"";
   const payload = encodeURIComponent(JSON.stringify(r));
-  return `<div class="mcard">${thumb}
+  return `<div class="mcard">
     <div class="mname">${esc(r.name)}</div>
-    <div class="mauth">${esc(r.author||'')} ${r.base_model?('· '+esc(r.base_model)):''}</div>
+    <div class="mauth">${esc(r.author||'')}</div>
     <span class="cbadge ${cls}">${compat}${r.note?(' · '+esc(r.note)):''}</span>
     <div class="mmeta"><span>${size}</span><span>${dl}</span></div>
     <button class="ibtn" ${installable?'':'disabled'} onclick='doInstall("${payload}",this)'>
@@ -453,7 +436,6 @@ function renderBrowseCard(r){
 async function doInstall(payload,btn){
   const r=JSON.parse(decodeURIComponent(payload));
   btn.disabled=true; btn.textContent="Queued…";
-  if(r.source==="civitai"){ alert("LoRA install lands in the next phase."); btn.disabled=false; btn.textContent="Install"; return; }
   await fetch("/api/install",{method:"POST",headers:{"content-type":"application/json"},
     body:JSON.stringify({repo:r.id,modality:r.modality,engine:r.engine,arch:r.arch,display:r.name})});
 }

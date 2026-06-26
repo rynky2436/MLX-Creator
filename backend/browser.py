@@ -1,5 +1,5 @@
-"""Model browser — search HuggingFace (MLX models) and Civitai (Flux LoRAs),
-normalize results, and detect which are drop-in compatible with our engines.
+"""Model browser — search HuggingFace, normalize results, and detect which are
+drop-in compatible with our engines.
 
 No torch, no downloads here — just metadata queries used by the Models tab.
 """
@@ -195,42 +195,3 @@ def search_hf(modality: str, query: str = "", limit: int = 30) -> list[dict]:
     fids = {f["id"] for f in feat}
     out = [o for o in out if o["id"] not in fids]
     return (feat + out)[:limit]
-
-
-# ---- Civitai (Flux LoRAs only) ----------------------------------------
-def search_civitai_loras(query: str = "", limit: int = 30) -> list[dict]:
-    params = {"types": "LORA", "limit": limit, "sort": "Highest Rated",
-              "baseModels": "Flux.1 D"}  # server-side filter to Flux LoRAs
-    if query:
-        params["query"] = query
-    try:
-        data = _get("https://civitai.com/api/v1/models?" + urllib.parse.urlencode(params))
-    except Exception:
-        return []
-    out = []
-    for m in data.get("items", []):
-        vers = m.get("modelVersions") or []
-        if not vers:
-            continue
-        v = vers[0]
-        base = (v.get("baseModel") or "")
-        if "flux" not in base.lower():
-            continue  # only Flux LoRAs are usable by our engine
-        files = v.get("files") or []
-        f0 = next((f for f in files if f.get("downloadUrl")), files[0] if files else {})
-        imgs = v.get("images") or []
-        out.append({
-            "source": "civitai", "id": str(m["id"]), "name": m["name"],
-            "author": (m.get("creator") or {}).get("username", "?"),
-            "modality": "lora", "base_model": base,
-            "downloads": (m.get("stats") or {}).get("downloadCount", 0),
-            "size_gb": round((f0.get("sizeKB") or 0) / 1e6, 3),
-            "version_id": v.get("id"),
-            "download_url": f0.get("downloadUrl"),
-            "filename": f0.get("name"),
-            "thumb": imgs[0]["url"] if imgs and imgs[0].get("url") else None,
-            "url": f"https://civitai.com/models/{m['id']}",
-            "compat": "lora", "engine": "flux",
-            "note": base,
-        })
-    return out

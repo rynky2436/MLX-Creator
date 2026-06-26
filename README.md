@@ -12,7 +12,7 @@ It's the "LM Studio" idea applied to generative media: a clean UI + a built-in m
 | Music | ACE-Step 1.5 (incl. 4-bit; 0.6B/4B "thinking" planner) | mlx-audio |
 | Video | Wan 2.2 TI2V-5B (text→video) | mlx-video |
 
-A built-in **Models** tab browses HuggingFace (MLX-only) and Civitai and installs models straight into `models/`, auto-registering them in the right tab.
+A built-in **Models** tab searches HuggingFace and installs models straight into `models/`, auto-registering them in the right tab.
 
 ## Install & run
 

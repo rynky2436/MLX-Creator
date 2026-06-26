@@ -392,8 +392,6 @@ async def api_jobs_delete(req: dict):
 
 @app.get("/api/browse")
 async def api_browse(source: str = "huggingface", modality: str = "image", q: str = ""):
-    if source == "civitai":
-        return browser.search_civitai_loras(query=q)
     return browser.search_hf(modality, query=q)
 
 
