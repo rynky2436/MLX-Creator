@@ -57,6 +57,8 @@
   .hint{font-size:11px;color:var(--mut);margin-top:6px}
   .job{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
     padding:14px;margin-bottom:16px}
+  /* install/download cards belong to the Models tab only — keep other tabs clean */
+  body:not([data-tab="models"]) .jobinstall{display:none}
   .job .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
   .job .pr{color:var(--txt);font-size:13px;max-width:72%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .kindtag{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--acc2);margin-right:6px}
@@ -324,6 +326,7 @@ document.querySelectorAll(".tab[data-tab]").forEach(t=>{
     const tab = t.dataset.tab;
     // gallery lives only in the Assets tab; browse only in Models. Generation
     // tabs show just the active-job area (decluttered).
+    document.body.dataset.tab = tab;   // CSS hides install cards off the Models tab
     $("#modelsSection").style.display = tab==="models"?"block":"none";
     $("#gallerySection").style.display = tab==="assets"?"block":"none";
     $("#settingsSection").style.display = tab==="settings"?"block":"none";
@@ -458,6 +461,7 @@ function renderJob(j){
   if(!el){el=document.createElement("div");el.className="job";jobViews[j.id]=el;jobsEl.prepend(el);}
   const pct=Math.round((j.progress||0)*100), stat=j.status||"queued";
   const music=j.kind==="music", video=j.kind==="video", install=j.kind==="install"||j.kind==="install_base";
+  el.classList.toggle("jobinstall", install);   // install cards live only in the Models tab
   const indet = (music||video) && stat==="running";   // no per-step % from these
   const stepTxt = install&&stat==="running" ? `downloading ${pct}%`
     : (j.step?`step ${j.step}/${j.total}`:(j.stage||stat));
