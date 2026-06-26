@@ -290,6 +290,9 @@
       <label>Memory</label>
       <button class="ibtn secondary" id="set_free" style="width:100%">Unload model · free RAM</button>
       <div class="hint" id="set_freenote">The active model stays in RAM for fast re-runs. Unload it to free memory — it reloads on the next generation.</div>
+      <label>Server</label>
+      <button class="ibtn secondary" id="set_quit" style="width:100%">Quit · stop server</button>
+      <div class="hint" id="set_quitnote">Stops the server and releases all its memory back to the system. Reopen the app to start it again.</div>
     </div>
   </section>
 
@@ -757,6 +760,12 @@ async function loadSettings(){
       <button class="ibtn secondary" style="margin-top:8px" onclick="uninstallModel('${m.id}',this)">Delete</button>
     </div>`).join("");
 }
+$('#set_quit').onclick=async()=>{
+  if(!confirm('Stop the MLX Creator server? This releases all its memory. Reopen the app to use it again.')) return;
+  const b=$('#set_quit'); b.disabled=true; b.textContent='Stopping…';
+  try{ await fetch('/api/shutdown',{method:'POST'}); }catch(e){}
+  $('#set_quitnote').textContent='✓ Server stopped — memory released. You can close this window.';
+};
 $('#set_free').onclick=async()=>{
   const b=$('#set_free'); b.disabled=true; b.textContent='Freeing…';
   try{ await fetch('/api/free',{method:'POST'}); $('#set_freenote').textContent='✓ Model unloaded — RAM freed. It reloads on your next generation.'; }

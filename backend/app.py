@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import queue
+import os
 import threading
 import time
 import uuid
@@ -264,6 +265,12 @@ async def _startup():
     asyncio.create_task(_broadcaster())
 
 
+@app.on_event("shutdown")
+async def _shutdown():
+    # Free the resident model on any clean shutdown (Ctrl+C, app quit, SIGTERM).
+    free_memory()
+
+
 async def _broadcaster():
     while True:
         event = await _event_q.get()
@@ -421,6 +428,18 @@ async def api_uninstall(req: dict):
 @app.post("/api/free")
 async def api_free():
     free_memory()
+    return {"ok": True}
+
+
+@app.post("/api/shutdown")
+async def api_shutdown():
+    """Stop the server and release all its memory back to the OS."""
+    free_memory()
+
+    def _die():
+        time.sleep(0.3)  # let the HTTP response flush first
+        os._exit(0)
+    threading.Thread(target=_die, daemon=True).start()
     return {"ok": True}
 
 
