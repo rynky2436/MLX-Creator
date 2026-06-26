@@ -68,7 +68,9 @@ def free_memory() -> None:
         pass
     import gc
     gc.collect()
+    had = _LOADED["key"]
     _LOADED["key"] = None
+    print(f"[mem] released resident model ({had or 'none'})", flush=True)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -83,6 +85,31 @@ JOB_Q: "queue.Queue[str]" = queue.Queue()
 _loop: asyncio.AbstractEventLoop | None = None
 _clients: set[WebSocket] = set()
 _event_q: "asyncio.Queue[dict]" = asyncio.Queue()
+_idle_task: "asyncio.Task | None" = None
+IDLE_FREE_SECS = 30   # free the model this long after the last UI window closes
+
+
+async def _idle_free():
+    try:
+        await asyncio.sleep(IDLE_FREE_SECS)
+    except asyncio.CancelledError:
+        return
+    if _clients:
+        return  # a window reopened in the meantime
+    if any(j.get("status") in ("running", "queued") for j in JOBS.values()):
+        return  # work in progress — keep the model loaded
+    free_memory()
+
+
+def _on_clients_changed():
+    """Cancel any pending free while a window is open; schedule one once the
+    last window closes, so closing the UI actually releases the model's RAM."""
+    global _idle_task
+    if _idle_task and not _idle_task.done():
+        _idle_task.cancel()
+        _idle_task = None
+    if not _clients:
+        _idle_task = asyncio.create_task(_idle_free())
 
 
 class GenRequest(BaseModel):
@@ -282,6 +309,8 @@ async def _broadcaster():
                 dead.append(ws)
         for ws in dead:
             _clients.discard(ws)
+        if dead:
+            _on_clients_changed()  # a window dropped → maybe schedule model free
 
 
 # ---- API ----------------------------------------------------------------
@@ -512,6 +541,7 @@ async def api_gallery():
 async def ws_endpoint(ws: WebSocket):
     await ws.accept()
     _clients.add(ws)
+    _on_clients_changed()  # a window is open — cancel any pending idle free
     # send a snapshot of current jobs on connect
     for job in sorted(JOBS.values(), key=lambda j: j["created_at"]):
         await ws.send_text(json.dumps({"type": "job", "job": job}))
@@ -520,6 +550,7 @@ async def ws_endpoint(ws: WebSocket):
             await ws.receive_text()  # keepalive / ignore
     except WebSocketDisconnect:
         _clients.discard(ws)
+        _on_clients_changed()  # last window closed → schedule model free
 
 
 # ---- static: outputs + frontend ----------------------------------------
