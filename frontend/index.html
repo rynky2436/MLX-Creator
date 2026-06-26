@@ -58,7 +58,19 @@
   .job{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
     padding:14px;margin-bottom:16px}
   /* install/download cards belong to the Models tab only — keep other tabs clean */
-  body:not([data-tab="models"]) .jobinstall{display:none}
+  /* install cards: only in Models (+ the Activity log) */
+  body:not([data-tab="models"]):not([data-tab="activity"]) .jobinstall{display:none}
+  /* generation cards: full history lives in Activity; a generation tab shows
+     only the newest one (the run in progress / just finished). */
+  body[data-tab="image"] #jobs .jobgen ~ .jobgen,
+  body[data-tab="music"] #jobs .jobgen ~ .jobgen,
+  body[data-tab="video"] #jobs .jobgen ~ .jobgen{display:none}
+  body[data-tab="models"] #jobs .jobgen,
+  body[data-tab="assets"] #jobs .jobgen,
+  body[data-tab="settings"] #jobs .jobgen{display:none}
+  body:not([data-tab="activity"]) #jobsBar{display:none !important}
+  #activityEmpty{display:none}
+  body[data-tab="activity"] #jobs:empty ~ #activityEmpty{display:block}
   .job .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
   .job .pr{color:var(--txt);font-size:13px;max-width:72%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .kindtag{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--acc2);margin-right:6px}
@@ -138,6 +150,7 @@
     <div class="tab" data-tab="music">Music</div>
     <div class="tab" data-tab="video">Video</div>
     <div class="tab" data-tab="assets">Assets</div>
+    <div class="tab" data-tab="activity">Activity</div>
     <div class="tab" data-tab="models">+ Models</div>
     <div class="tab" data-tab="settings">⚙</div>
   </div>
@@ -280,6 +293,7 @@
   <section class="stage">
     <div id="jobsBar"><button class="jbtn" onclick="clearFinished()">Clear finished</button></div>
     <div id="jobs"></div>
+    <div id="activityEmpty" class="empty">No activity yet — generations and downloads show up here.</div>
     <!-- your generations (Assets tab only) -->
     <div id="gallerySection" style="display:none">
       <h3>Your creations</h3>
@@ -470,6 +484,7 @@ function renderJob(j){
   const pct=Math.round((j.progress||0)*100), stat=j.status||"queued";
   const music=j.kind==="music", video=j.kind==="video", install=j.kind==="install"||j.kind==="install_base"||j.kind==="install_planner";
   el.classList.toggle("jobinstall", install);   // install cards live only in the Models tab
+  el.classList.toggle("jobgen", !install);      // generation history lives in the Activity tab
   const indet = (music||video) && stat==="running";   // no per-step % from these
   const stepTxt = install&&stat==="running" ? `downloading ${pct}%`
     : (j.step?`step ${j.step}/${j.total}`:(j.stage||stat));
