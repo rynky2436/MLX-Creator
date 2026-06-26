@@ -1,6 +1,8 @@
-# Model weights & generated media — huge, downloaded on demand, not source
-models/
-outputs/
+# Model weights & generated media — huge, downloaded on demand, not source.
+# Anchored to repo root so they don't match vendored code dirs named the same
+# (e.g. vendor/mflux/src/mflux/models/).
+/models/
+/outputs/
 
 # Python environment
 .venv/
