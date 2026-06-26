@@ -11,7 +11,8 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-MODELS = ROOT / "models"
+import config
+MODELS = config.models_dir()
 MANIFEST = "mlxstudio.json"
 
 # Seed known folders from this build (so we don't depend on heuristics for them).

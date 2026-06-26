@@ -24,6 +24,8 @@ STEP 2 — Open it once (pick either method)
 After this one-time step, MLX Creator opens normally from then on.
 
 FIRST LAUNCH NOTE
-  The first run downloads about 72 GB of models (Flux, ACE-Step 1.5, Wan 2.2)
-  and opens a Terminal window showing progress — keep it open until it finishes.
-  If it's interrupted, just launch MLX Creator again; the download resumes.
+  The first run does a quick one-time setup (~1-2 min) in a Terminal window.
+  Then the app opens with a welcome screen where you choose which models to
+  download — image (Flux), music (ACE-Step 1.5), video (Wan 2.2) — any, all, or
+  none. A tab appears only for what you install; add or remove models anytime
+  from the Models / Settings tabs.

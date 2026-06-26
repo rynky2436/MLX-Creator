@@ -32,7 +32,8 @@ import flux.utils as _flux_utils  # noqa: E402
 # Each model lives in models/<NAME>/ with the BFL file layout. We intercept the
 # loader's hf_hub_download so any file present locally is used directly — the
 # network is only ever touched if a file is genuinely missing.
-MODELS_DIR = ROOT / "models"
+import config
+MODELS_DIR = config.models_dir()
 # Default known dirs + an "active" dir set per generation so any installed Flux
 # model folder can be loaded. The loader's hf_hub_download is intercepted to use
 # local files first (active dir wins), so the network is never touched.

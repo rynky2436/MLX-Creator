@@ -17,7 +17,8 @@ os.environ.setdefault("HF_XET_HIGH_PERFORMANCE", "1")
 from huggingface_hub import snapshot_download
 
 ROOT = Path(__file__).resolve().parent.parent
-MODELS = ROOT / "models"
+import config
+MODELS = config.models_dir()
 
 # label -> list of (repo, dest-folder, allow_patterns or None)
 BASES = {

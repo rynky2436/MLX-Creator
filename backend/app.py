@@ -26,6 +26,8 @@ import video_engine
 import browser
 import registry
 import installer
+import config
+import shutil
 import mlx.core as mx
 
 # Keep exactly ONE model resident: switching engine/model frees the previous
@@ -292,6 +294,53 @@ async def api_installed(modality: str | None = None):
 @app.get("/api/base_models")
 async def api_base_models():
     return installer.base_models_status()
+
+
+def _dir_gb(d: Path) -> float:
+    return round(sum(p.stat().st_size for p in d.rglob("*") if p.is_file()) / 1e9, 2)
+
+
+@app.get("/api/settings")
+async def api_settings():
+    md = config.models_dir()
+    try:
+        free = shutil.disk_usage(md).free / 1e9
+    except Exception:
+        free = 0
+    models = registry.list_installed()
+    for m in models:
+        m["size_gb"] = _dir_gb(Path(m["dir"]))
+    return {"models_dir": str(md), "models_total_gb": _dir_gb(md),
+            "disk_free_gb": round(free, 1), "models": models}
+
+
+@app.post("/api/settings")
+async def api_set_settings(req: dict):
+    out = {"ok": True}
+    if "models_dir" in req:
+        p = Path(req["models_dir"]).expanduser()
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            t = p / ".write_test"
+            t.write_text("x")
+            t.unlink()
+        except Exception as e:
+            return JSONResponse({"error": f"Can't use that folder: {e}"}, status_code=400)
+        config.update({"models_dir": str(p)})
+        out["restart_required"] = True
+    out["settings"] = config.load()
+    return out
+
+
+@app.post("/api/uninstall")
+async def api_uninstall(req: dict):
+    md = config.models_dir().resolve()
+    target = (md / req.get("id", "")).resolve()
+    if md not in target.parents or not target.is_dir():
+        return JSONResponse({"error": "invalid model id"}, status_code=400)
+    freed = _dir_gb(target)
+    shutil.rmtree(target)
+    return {"ok": True, "freed_gb": freed}
 
 
 @app.post("/api/install_base")

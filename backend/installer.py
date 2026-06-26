@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Callable, Optional
 
 ROOT = Path(__file__).resolve().parent.parent
-MODELS = ROOT / "models"
+import config
+MODELS = config.models_dir()
 
 _IGNORE = ["*.md", ".gitattributes", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.mp4"]
 

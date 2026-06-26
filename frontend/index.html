@@ -130,6 +130,7 @@
     <div class="tab" data-tab="video">Video</div>
     <div class="tab" data-tab="assets">Assets</div>
     <div class="tab" data-tab="models">+ Models</div>
+    <div class="tab" data-tab="settings">⚙</div>
   </div>
   <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">connecting…</span></div>
 </header>
@@ -254,6 +255,17 @@
       <div class="hint" id="assetCount" style="margin-top:14px"></div>
       <div class="hint">Everything you generate is saved here and on disk in <code>outputs/</code>.</div>
     </div>
+
+    <!-- SETTINGS -->
+    <div class="panel" id="panel-settings">
+      <label>Models folder</label>
+      <input id="set_dir" placeholder="/path/to/models" />
+      <button class="gen" id="set_save">Save folder</button>
+      <div class="hint" id="set_note">Where models are stored. Point it at an external
+        drive if you're low on disk. Takes effect after restarting the app.</div>
+      <label>Disk</label>
+      <div class="hint" id="set_disk">—</div>
+    </div>
   </section>
 
   <section class="stage">
@@ -271,6 +283,12 @@
       <div class="empty" id="browseEmpty">Search HuggingFace or Civitai above.</div>
       <h3 style="margin-top:24px">Installed</h3>
       <div class="grid" id="installedGrid"></div>
+    </div>
+    <!-- settings -->
+    <div id="settingsSection" style="display:none">
+      <h3>Installed models</h3>
+      <div class="grid" id="installedModelsGrid"></div>
+      <div class="empty" id="noInstalled">No models yet — add some from the welcome screen or the Models tab.</div>
     </div>
   </section>
 </main>
@@ -308,8 +326,10 @@ document.querySelectorAll(".tab[data-tab]").forEach(t=>{
     // tabs show just the active-job area (decluttered).
     $("#modelsSection").style.display = tab==="models"?"block":"none";
     $("#gallerySection").style.display = tab==="assets"?"block":"none";
+    $("#settingsSection").style.display = tab==="settings"?"block":"none";
     if(tab==="models") loadInstalled();
     if(tab==="assets") loadGallery();
+    if(tab==="settings") loadSettings();
   };
 });
 
@@ -638,6 +658,33 @@ $('#welcomeInstall').onclick=async()=>{
   await fetch('/api/install_base',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bases:sel})});
 };
 $('#welcomeSkip').onclick=()=>$('#welcome').classList.remove('on');
+
+// ---- settings: models folder, disk, installed models (with delete) ----
+async function loadSettings(){
+  const s=await (await fetch('/api/settings')).json();
+  $('#set_dir').value=s.models_dir;
+  $('#set_disk').textContent=`Models use ${s.models_total_gb} GB · ${s.disk_free_gb} GB free on disk`;
+  const g=$('#installedModelsGrid');
+  $('#noInstalled').style.display=s.models.length?'none':'block';
+  g.innerHTML=s.models.map(m=>`<div class="mcard">
+      <div class="mname">${esc(m.display||m.id)}</div>
+      <div class="mauth">${m.modality} · ${m.engine}${m.arch?(' · '+m.arch):''} · ${m.size_gb} GB</div>
+      <button class="ibtn secondary" style="margin-top:8px" onclick="uninstallModel('${m.id}',this)">Delete</button>
+    </div>`).join("");
+}
+$('#set_save').onclick=async()=>{
+  const dir=$('#set_dir').value.trim(); if(!dir) return;
+  const r=await (await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({models_dir:dir})})).json();
+  $('#set_note').textContent = r.error ? ('⚠ '+r.error)
+    : '✓ Saved. Restart the app (or ./run.sh) to use the new folder.';
+};
+async function uninstallModel(id,btn){
+  if(!confirm('Delete "'+id+'"? This permanently removes its files from disk.')) return;
+  btn.disabled=true; btn.textContent='Deleting…';
+  const r=await (await fetch('/api/uninstall',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id})})).json();
+  if(r.error){ btn.disabled=false; btn.textContent='Delete'; alert(r.error); return; }
+  loadSettings(); loadInstalled(); buildTabs();
+}
 
 connect();loadGallery();checkPlanners();setInterval(checkPlanners,15000);updateDurHint();loadInstalled();showWelcomeIfNeeded();
 </script>

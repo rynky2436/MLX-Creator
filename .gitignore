@@ -16,6 +16,7 @@ vendor/**/.git/
 # misc
 .DS_Store
 *.log
+settings.json
 
 # packaging build artifacts (regenerable)
 packaging/build/
