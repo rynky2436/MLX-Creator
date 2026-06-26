@@ -14,14 +14,19 @@ It's the "LM Studio" idea applied to generative media: a clean UI + a built-in m
 
 A built-in **Models** tab browses HuggingFace (MLX-only) and Civitai and installs models straight into `models/`, auto-registering them in the right tab.
 
-## Run
+## Install & run
 
 ```bash
-./setup_venv.sh   # one-time: create the MLX virtualenv (no torch)
+git clone https://github.com/rynky2436/MLX-Creator.git
+cd MLX-Creator
+./install.sh      # builds the MLX venv (no torch) + pulls the 3 base models
 ./run.sh          # serve at http://127.0.0.1:8200
 ```
 
-Model weights download on first use into `models/` (git-ignored — they're large).
+`install.sh` downloads the three base models — **Flux** (image), **ACE-Step 1.5**
+(music), **Wan 2.2** (video), ~72 GB total — into `models/` (git-ignored). It's
+resumable; re-running skips anything already present. Grab more models anytime
+from the in-app **Models** tab.
 
 ## Layout
 

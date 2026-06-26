@@ -9,7 +9,7 @@ export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 echo "============================================================"
 echo "  MLX Creator — first-time setup"
-echo "  (one time; downloads ~34 GB base model. Keep this open.)"
+echo "  (one time; downloads the 3 base models ~72 GB. Keep this open.)"
 echo "============================================================"
 
 mkdir -p "$APP_SUPPORT"
@@ -26,10 +26,9 @@ cd "$APP_SUPPORT"
 echo "→ Building Python environment (MLX, no PyTorch)…"
 ./setup_venv.sh
 
-echo "→ Downloading base model: FLUX.1-schnell…"
+echo "→ Downloading base models (Flux · ACE-Step 1.5 · Wan 2.2)…"
 source .venv/bin/activate
-HF_HUB_OFFLINE=0 FLUX_SCHNELL_REPO="lzyvegetable/FLUX.1-schnell" \
-  python backend/download_models.py
+python backend/download_base_models.py
 
 echo ""
 echo "✓ Setup complete — launching MLX Creator."
