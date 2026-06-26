@@ -73,6 +73,15 @@ def free_memory() -> None:
     print(f"[mem] released resident model ({had or 'none'})", flush=True)
 
 
+def trim_cache() -> None:
+    """Return MLX's freed buffer pool to the OS after a generation WITHOUT
+    unloading the model — keeps RSS bounded across repeated gens on one model."""
+    try:
+        (mx.clear_cache if hasattr(mx, "clear_cache") else mx.metal.clear_cache)()
+    except Exception:
+        pass
+
+
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS = ROOT / "outputs"
 FRONTEND = ROOT / "frontend"
@@ -281,6 +290,7 @@ def worker() -> None:
             else:
                 _set(job_id, status="error", error=f"{type(e).__name__}: {e}")
         finally:
+            trim_cache()   # return transient buffers to the OS after every job
             CANCEL.discard(job_id)
             JOB_Q.task_done()
 
