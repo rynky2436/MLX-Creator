@@ -66,6 +66,13 @@
   .badge.running{color:var(--acc);background:rgba(110,168,254,.12)}
   .badge.done{color:var(--ok);background:rgba(62,207,142,.12)}
   .badge.error{color:var(--err);background:rgba(255,107,107,.12)}
+  .badge.canceled,.badge.canceling{color:#f5b342;background:rgba(245,179,66,.13)}
+  .jactions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .jbtn{background:var(--panel2);border:1px solid var(--line);color:var(--mut);
+    border-radius:8px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;line-height:1.4}
+  .jbtn:hover{color:var(--txt);border-color:var(--acc)}
+  .jbtn.danger:hover{color:var(--err);border-color:var(--err)}
+  #jobsBar{display:none;justify-content:flex-end;margin-bottom:10px}
   .bar{height:6px;background:var(--panel2);border-radius:99px;margin-top:10px;overflow:hidden}
   .bar>i{display:block;height:100%;width:0;border-radius:99px;
     background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .25s}
@@ -271,6 +278,7 @@
   </section>
 
   <section class="stage">
+    <div id="jobsBar"><button class="jbtn" onclick="clearFinished()">Clear finished</button></div>
     <div id="jobs"></div>
     <!-- your generations (Assets tab only) -->
     <div id="gallerySection" style="display:none">
@@ -498,15 +506,45 @@ function renderJob(j){
       : `<img src="${url}" onclick="openLB('${url}')" style="margin-top:10px;max-height:240px;border-radius:8px;cursor:pointer"/>`;
   }
   const kind=install?"install":video?"video":music?"music":"image";
+  const actions = (stat==="queued"||stat==="running")
+    ? `<button class="jbtn danger" onclick="cancelJob('${j.id}')">Cancel</button>`
+    : stat==="canceling"
+    ? `<button class="jbtn" disabled>Canceling…</button>`
+    : `<button class="jbtn" onclick="deleteJob('${j.id}')" title="Remove">✕</button>`;
   el.innerHTML=
     `<div class="top"><div class="pr"><span class="kindtag">${kind}</span>${esc(j.prompt)}</div>
-       <span class="badge ${stat}">${stepTxt}</span></div>
+       <div class="jactions"><span class="badge ${stat}">${stepTxt}</span>${actions}</div></div>
      <div class="bar ${indet?'indet':''}"><i style="width:${stat==='done'?100:pct}%"></i></div>
      <div class="meta">${meta}</div>${media}`;
   if(stat==="done"&&!el.dataset.done){
     el.dataset.done="1";
     if(install){loadInstalled(); buildTabs();} else {loadGallery();}
   }
+  updateJobsBar();
+}
+async function cancelJob(id){
+  fetch("/api/cancel",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id})});
+}
+function removeJobCard(id){
+  const el=jobViews[id]; if(el){el.remove(); delete jobViews[id];} updateJobsBar();
+}
+async function deleteJob(id){
+  removeJobCard(id);
+  fetch("/api/jobs/delete",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id})});
+}
+function clearFinished(){
+  Object.entries(jobViews).forEach(([id,el])=>{
+    const b=el.querySelector(".badge");
+    if(b && ["done","error","canceled"].some(s=>b.classList.contains(s))) deleteJob(id);
+  });
+}
+function updateJobsBar(){
+  const bar=$("#jobsBar"); if(!bar) return;
+  const any=Object.values(jobViews).some(el=>{
+    const b=el.querySelector(".badge");
+    return b && ["done","error","canceled"].some(s=>b.classList.contains(s));
+  });
+  bar.style.display = any ? "flex" : "none";
 }
 
 let assetFilter="all";
@@ -580,7 +618,9 @@ function connect(){
   ws=new WebSocket(`ws://${location.host}/ws`);
   ws.onopen=()=>{$("#dot").classList.add("on");$("#statusTxt").textContent="connected";};
   ws.onclose=()=>{$("#dot").classList.remove("on");$("#statusTxt").textContent="reconnecting…";setTimeout(connect,1500);};
-  ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==="job"){renderJob(m.job); if(m.job.kind==="install_base") onBaseJob(m.job); if(m.job.kind==="install_planner") onPlannerJob(m.job);}};
+  ws.onmessage=e=>{const m=JSON.parse(e.data);
+    if(m.type==="job_removed"){ removeJobCard(m.id); return; }
+    if(m.type==="job"){renderJob(m.job); if(m.job.kind==="install_base") onBaseJob(m.job); if(m.job.kind==="install_planner") onPlannerJob(m.job);}};
 }
 let plannerDownloading=false;
 async function checkPlanners(){

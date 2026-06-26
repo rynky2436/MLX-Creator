@@ -110,6 +110,7 @@ def generate(
     lm_size: str = "0.6B",
     model_id: str = "ACE-Step1.5-MLX",
     on_stage: Optional[Callable[[str], None]] = None,
+    should_cancel: Optional[Callable[[], None]] = None,
 ) -> dict:
     if lm_size not in _PLANNER_DIRS or not _PLANNER_DIRS[lm_size].exists():
         lm_size = "0.6B"  # fall back if the chosen planner isn't downloaded
@@ -139,6 +140,8 @@ def generate(
         verbose=False,
     ):
         last = result
+        if should_cancel:
+            should_cancel()  # raises to abort the run between diffusion steps
     gen_s = time.time() - t0
     meta = _LAST_META.get("meta") or {}
 

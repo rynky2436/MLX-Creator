@@ -123,21 +123,39 @@ def _set(job_id: str, **kw) -> None:
     emit({"type": "job", "job": JOBS[job_id]})
 
 
+CANCEL: set[str] = set()   # job ids asked to stop mid-run
+
+
+class _Canceled(Exception):
+    """Raised from on_step/on_stage/should_cancel to abort a running job."""
+
+
 def worker() -> None:
     while True:
         job_id = JOB_Q.get()
         job = JOBS[job_id]
-        if job.get("status") == "canceled":
+        if job.get("status") == "canceled" or job_id in CANCEL:
+            CANCEL.discard(job_id)
+            _set(job_id, status="canceled", stage="canceled")
+            JOB_Q.task_done()
             continue
         try:
             _set(job_id, status="running", stage="starting", progress=0.0)
 
             def on_step(i, total, _jid=job_id):
+                if _jid in CANCEL:
+                    raise _Canceled()
                 _set(_jid, stage="denoising", step=i, total=total,
                      progress=round(i / total, 3))
 
             def on_stage(s, _jid=job_id):
+                if _jid in CANCEL:
+                    raise _Canceled()
                 _set(_jid, stage=s)
+
+            def should_cancel(_jid=job_id):
+                if _jid in CANCEL:
+                    raise _Canceled()
 
             if job["kind"] == "install":
                 def on_prog(p, _jid=job_id):
@@ -166,6 +184,7 @@ def worker() -> None:
                     vocal_language=job["vocal_language"], seed=job["seed"],
                     lm_size=job.get("lm_size", "0.6B"),
                     model_id=job.get("model", "ACE-Step1.5-MLX"), on_stage=on_stage,
+                    should_cancel=should_cancel,
                 )
             elif job["kind"] == "video":
                 ensure_only_loaded("wan", job.get("model", "Wan2.2-TI2V-5B-MLX"))
@@ -201,13 +220,21 @@ def worker() -> None:
                         seed=job["seed"], quantize=job["quantize"],
                         on_step=on_step, on_stage=on_stage,
                     )
+            if job_id in CANCEL:
+                raise _Canceled()
             _set(job_id, status="done", stage="done", progress=1.0,
                  result=result, finished_at=time.time())
+        except _Canceled:
+            _set(job_id, status="canceled", stage="canceled", finished_at=time.time())
         except Exception as e:  # surface failures to the UI
             import traceback
             traceback.print_exc()
-            _set(job_id, status="error", error=f"{type(e).__name__}: {e}")
+            if job_id in CANCEL:
+                _set(job_id, status="canceled", stage="canceled")
+            else:
+                _set(job_id, status="error", error=f"{type(e).__name__}: {e}")
         finally:
+            CANCEL.discard(job_id)
             JOB_Q.task_done()
 
 
@@ -282,6 +309,31 @@ async def api_generate_video(req: VideoRequest):
 @app.get("/api/jobs")
 async def api_jobs():
     return JSONResponse(sorted(JOBS.values(), key=lambda j: j["created_at"], reverse=True))
+
+
+@app.post("/api/cancel")
+async def api_cancel(req: dict):
+    jid = req.get("id")
+    j = JOBS.get(jid)
+    if not j:
+        return {"ok": False}
+    if j.get("status") in ("queued",):
+        j["status"] = "canceled"
+        j["stage"] = "canceled"
+        emit({"type": "job", "job": j})
+    elif j.get("status") == "running":
+        CANCEL.add(jid)
+        _set(jid, stage="canceling")
+    return {"ok": True}
+
+
+@app.post("/api/jobs/delete")
+async def api_jobs_delete(req: dict):
+    jid = req.get("id")
+    CANCEL.discard(jid)
+    if JOBS.pop(jid, None):
+        emit({"type": "job_removed", "id": jid})
+    return {"ok": True}
 
 
 @app.get("/api/browse")
