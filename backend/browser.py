@@ -37,6 +37,17 @@ def _classify_hf(model_id: str, tags: list[str], siblings: list[str],
     files = set(siblings)
     name = model_id.lower()
     lib = (library or "").lower()
+    tagset = {t.lower() for t in (tags or [])}
+    is_mlx = lib == "mlx" or "mlx" in tagset or "mlx" in name
+
+    # Universal format gates — these never load in our MLX engines, regardless
+    # of modality. Catch them before the optimistic per-engine branches.
+    if any(f.endswith(".gguf") for f in files) or "gguf" in name:
+        return {"compat": "unsupported", "engine": None, "note": "GGUF (llama.cpp) — not MLX"}
+    if "comfyui" in name or "comfy-org" in name or "comfy_org" in name or "comfyui" in tagset:
+        return {"compat": "unsupported", "engine": None, "note": "ComfyUI package — not a loadable model"}
+    if not is_mlx and any(k in name for k in ("fp8", "nvfp4", "mxfp4", "df11", "awq", "gptq", "-nf4")):
+        return {"compat": "needs-torch", "engine": None, "note": "torch quant format — not MLX"}
 
     # We vendor DiffusionKit's MLX SD3/SD3.5 path (torch-free) and mflux's Qwen.
     if lib == "diffusionkit" and ("stable-diffusion-3" in name or "sd3" in name):
@@ -64,8 +75,11 @@ def _classify_hf(model_id: str, tags: list[str], siblings: list[str],
         return {"compat": "unsupported", "engine": None, "note": "non-Flux image model"}
 
     if engine == "mlx-audio":
-        # mlx-audio loads many model_types from config.json
-        return {"compat": "drop-in", "engine": "mlx-audio", "note": "mlx-audio model"}
+        # MLX-converted audio = drop-in; otherwise it may need conversion, so
+        # don't pretend it's a guaranteed drop-in.
+        if is_mlx:
+            return {"compat": "drop-in", "engine": "mlx-audio", "note": "MLX audio model"}
+        return {"compat": "maybe", "engine": "mlx-audio", "note": "verify MLX layout on install"}
 
     if engine == "mlx-video":
         is_wan = "wan" in name
@@ -133,12 +147,25 @@ def search_hf(modality: str, query: str = "", limit: int = 30) -> list[dict]:
     spec = MODALITIES.get(modality)
     if not spec:
         return []
+    q = query.strip()
+    raw = max(limit, 40)
+
+    # A typed query does a broad name search across ALL of HF — NOT gated on the
+    # `mlx` tag or a pipeline_tag, since plenty of real repos (ACE-Step variants,
+    # community ports) lack those. Compatibility is surfaced per-result via the
+    # badge instead of hiding the model. Browsing (no query) keeps the tighter
+    # mlx + task filter for relevance.
+    param_sets = []
+    if q:
+        param_sets.append({"search": q, "sort": "downloads", "limit": raw, "full": "true"})
+        param_sets.append({"search": q, "filter": "mlx", "limit": raw, "full": "true"})
+    else:
+        for ptag in spec["tags"]:
+            param_sets.append({"filter": "mlx", "pipeline_tag": ptag,
+                               "sort": "downloads", "limit": raw, "full": "true"})
+
     out, seen = [], set()
-    for ptag in spec["tags"]:
-        params = {"filter": "mlx", "pipeline_tag": ptag, "sort": "downloads",
-                  "limit": limit, "full": "true"}
-        if query:
-            params["search"] = query
+    for params in param_sets:
         try:
             results = _get("https://huggingface.co/api/models?" + urllib.parse.urlencode(params))
         except Exception:
@@ -160,7 +187,10 @@ def search_hf(modality: str, query: str = "", limit: int = 30) -> list[dict]:
                 "url": f"https://huggingface.co/{mid}", "files": len(sibs),
                 **cls,
             })
-    out.sort(key=lambda x: x["downloads"], reverse=True)
+    # usable models first (drop-in/convert/maybe), then by downloads — but the
+    # incompatible ones still show so you can see the model exists.
+    out.sort(key=lambda x: (x.get("compat") in ("needs-torch", "unsupported"),
+                            -(x.get("downloads") or 0)))
     feat = _featured(modality, query)
     fids = {f["id"] for f in feat}
     out = [o for o in out if o["id"] not in fids]
