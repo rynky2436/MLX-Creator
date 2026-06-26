@@ -83,6 +83,49 @@ def generate(
     model_id: str = "Wan2.2-TI2V-5B-MLX",
     on_stage: Optional[Callable[[str], None]] = None,
 ) -> dict:
+    """Run Wan generation in a SUBPROCESS. mlx-video holds the model inside its
+    own internals (no handle for us to unload), so the only reliable way to free
+    its ~9GB is to let a subprocess exit — the OS reclaims everything."""
+    import json
+    import subprocess
+    import sys
+    if on_stage:
+        on_stage("loading model")
+    payload = json.dumps({
+        "prompt": prompt, "negative_prompt": negative_prompt,
+        "width": width, "height": height, "num_frames": num_frames,
+        "duration": duration, "steps": steps, "guidance": guidance,
+        "shift": shift, "seed": seed, "image": image, "model_id": model_id,
+    })
+    if on_stage:
+        on_stage("generating video (subprocess)")
+    env = {**os.environ, "HF_HUB_OFFLINE": "1"}
+    proc = subprocess.run(
+        [sys.executable, str(Path(__file__).parent / "video_runner.py")],
+        input=payload, capture_output=True, text=True, env=env,
+    )
+    for line in proc.stdout.splitlines():
+        if line.startswith("__RESULT__"):
+            return json.loads(line[len("__RESULT__"):])
+    raise RuntimeError("Video subprocess failed:\n" + (proc.stderr or proc.stdout)[-800:])
+
+
+def _generate_core(
+    *,
+    prompt: str,
+    negative_prompt: Optional[str] = None,
+    width: int = 704,
+    height: int = 480,
+    num_frames: int = 49,
+    duration: Optional[float] = None,
+    steps: int = 20,
+    guidance: Optional[float] = None,
+    shift: Optional[float] = None,
+    seed: int = -1,
+    image: Optional[str] = None,
+    model_id: str = "Wan2.2-TI2V-5B-MLX",
+    on_stage: Optional[Callable[[str], None]] = None,
+) -> dict:
     model_dir = MODELS / model_id
     if not (model_dir / "model.safetensors").exists():
         model_dir = WAN_DIR  # fall back to default
