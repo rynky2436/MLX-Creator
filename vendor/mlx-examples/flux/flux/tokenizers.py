@@ -93,8 +93,9 @@ class CLIPTokenizer:
         # Split the tokens according to the byte-pair merge file
         bpe_tokens = [ti for t in tokens for ti in self.bpe(t)]
 
-        # Map to token ids and return
-        tokens = [self.vocab[t] for t in bpe_tokens]
+        # Map to token ids and return. Skip tokens outside the vocab (e.g. an
+        # em-dash or smart quote) so unusual characters don't crash encoding.
+        tokens = [self.vocab[t] for t in bpe_tokens if t in self.vocab]
         if prepend_bos:
             tokens = [self.bos_token] + tokens
         if append_eos:

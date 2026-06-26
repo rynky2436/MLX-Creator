@@ -106,6 +106,7 @@
     <div class="tab active" data-tab="image">Image</div>
     <div class="tab" data-tab="music">Music</div>
     <div class="tab" data-tab="video">Video</div>
+    <div class="tab" data-tab="assets">Assets</div>
     <div class="tab" data-tab="models">+ Models</div>
   </div>
   <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">connecting…</span></div>
@@ -218,13 +219,26 @@
       <button class="gen" id="b_btn">Search</button>
       <div class="hint">HuggingFace shows MLX models only. Badges: <b style="color:var(--ok)">drop-in</b> = installs &amp; runs · <b>convert/unsupported</b> = not loadable here.</div>
     </div>
+
+    <!-- ASSETS (your generations) -->
+    <div class="panel" id="panel-assets">
+      <label>Filter</label>
+      <div class="chips" id="assetChips">
+        <div class="chip on" data-af="all">All</div>
+        <div class="chip" data-af="image">Images</div>
+        <div class="chip" data-af="audio">Music</div>
+        <div class="chip" data-af="video">Video</div>
+      </div>
+      <div class="hint" id="assetCount" style="margin-top:14px"></div>
+      <div class="hint">Everything you generate is saved here and on disk in <code>outputs/</code>.</div>
+    </div>
   </section>
 
   <section class="stage">
     <div id="jobs"></div>
-    <!-- generation gallery -->
-    <div id="gallerySection">
-      <h3>Gallery</h3>
+    <!-- your generations (Assets tab only) -->
+    <div id="gallerySection" style="display:none">
+      <h3>Your creations</h3>
       <div class="grid" id="grid"></div>
       <div class="empty" id="emptyGrid">Nothing yet — generate something.</div>
     </div>
@@ -252,10 +266,13 @@ document.querySelectorAll(".tab[data-tab]").forEach(t=>{
     t.classList.add("active");
     document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
     $("#panel-"+t.dataset.tab).classList.add("active");
-    const models = t.dataset.tab==="models";
-    $("#modelsSection").style.display = models?"block":"none";
-    $("#gallerySection").style.display = models?"none":"block";
-    if(models) loadInstalled();
+    const tab = t.dataset.tab;
+    // gallery lives only in the Assets tab; browse only in Models. Generation
+    // tabs show just the active-job area (decluttered).
+    $("#modelsSection").style.display = tab==="models"?"block":"none";
+    $("#gallerySection").style.display = tab==="assets"?"block":"none";
+    if(tab==="models") loadInstalled();
+    if(tab==="assets") loadGallery();
   };
 });
 
@@ -431,8 +448,12 @@ function renderJob(j){
   }
 }
 
+let assetFilter="all";
 async function loadGallery(){
-  const items=await (await fetch("/api/gallery")).json();
+  let items=await (await fetch("/api/gallery")).json();
+  const total=items.length;
+  if(assetFilter!=="all") items=items.filter(it=>it.type===assetFilter);
+  const ac=$("#assetCount"); if(ac) ac.textContent=`${items.length} of ${total} item${total===1?"":"s"}`;
   $("#emptyGrid").style.display=items.length?"none":"block";
   gridEl.innerHTML=items.map(it=>
     it.type==="video"
@@ -446,6 +467,12 @@ async function loadGallery(){
            <div class="cap">${esc(it.filename)}</div></div>`
   ).join("");
 }
+document.querySelectorAll("#assetChips .chip").forEach(c=>{
+  c.onclick=()=>{
+    document.querySelectorAll("#assetChips .chip").forEach(x=>x.classList.remove("on"));
+    c.classList.add("on"); assetFilter=c.dataset.af; loadGallery();
+  };
+});
 function openLB(u){$("#lbImg").src=u;$("#lb").classList.add("on");}
 $("#lb").onclick=()=>$("#lb").classList.remove("on");
 

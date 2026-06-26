@@ -13,6 +13,7 @@ static NSStatusItem *gStatusItem = nil;
 @implementation AppDelegate
 
 - (void)applicationDidFinishLaunching:(NSNotification *)note {
+    NSLog(@"MLXC: applicationDidFinishLaunching fired");
     // locate launch.sh next to this executable
     char execPath[4096];
     uint32_t sz = sizeof(execPath);
@@ -22,17 +23,13 @@ static NSStatusItem *gStatusItem = nil;
         gTask = [[NSTask alloc] init];
         gTask.launchPath = @"/bin/bash";
         gTask.arguments = @[ script ];
-        @try { [gTask launch]; } @catch (NSException *e) { NSLog(@"launch failed: %@", e); }
+        @try { [gTask launch]; } @catch (NSException *e) { NSLog(@"MLXC: launch failed: %@", e); }
     }
 
-    // menu-bar status item
+    // menu-bar status item — plain text label for now so it's unmistakable
     gStatusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
-    NSImage *img = nil;
-    if (@available(macOS 11.0, *)) {
-        img = [NSImage imageWithSystemSymbolName:@"sparkles" accessibilityDescription:@"MLX Creator"];
-    }
-    if (img) { img.template = YES; gStatusItem.button.image = img; }
-    else { gStatusItem.button.title = @"✦"; }
+    NSLog(@"MLXC: statusItem=%@ button=%@", gStatusItem, gStatusItem.button);
+    gStatusItem.button.title = @"✦ MLX";
     gStatusItem.button.toolTip = @"MLX Creator";
 
     NSMenu *menu = [[NSMenu alloc] init];
