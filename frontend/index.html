@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MLX Creator</title>
+<style>
+  :root{
+    --bg:#0c0d10; --panel:#15171c; --panel2:#1c1f26; --line:#262a33;
+    --txt:#e7e9ee; --mut:#8b91a0; --acc:#6ea8fe; --acc2:#9d7bff;
+    --ok:#3ecf8e; --err:#ff6b6b; --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:var(--bg);color:var(--txt)}
+  header{display:flex;align-items:center;gap:18px;padding:14px 22px;
+    border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+  .logo{font-weight:700;letter-spacing:.3px;font-size:16px}
+  .logo span{background:linear-gradient(90deg,var(--acc),var(--acc2));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .tagline{font-size:11px;color:var(--mut);margin-left:-8px;letter-spacing:.2px}
+  .tabs{display:flex;gap:6px}
+  .tab{padding:6px 14px;border-radius:99px;color:var(--mut);cursor:pointer;font-weight:600}
+  .tab.active{background:var(--panel2);color:var(--txt)}
+  .tab.soon{opacity:.4;cursor:not-allowed}
+  .tab.soon::after{content:" soon";font-size:10px;color:var(--acc2)}
+  .status{margin-left:auto;font-size:12px;color:var(--mut);display:flex;align-items:center;gap:7px}
+  .dot{width:8px;height:8px;border-radius:99px;background:var(--err)}
+  .dot.on{background:var(--ok)}
+  main{display:grid;grid-template-columns:340px 1fr;height:calc(100vh - 53px)}
+  .controls{padding:20px;border-right:1px solid var(--line);overflow:auto}
+  .panel{display:none}
+  .panel.active{display:block}
+  .stage{padding:20px;overflow:auto}
+  label{display:block;font-size:12px;color:var(--mut);margin:14px 0 6px;font-weight:600}
+  textarea,input,select{width:100%;background:var(--panel);border:1px solid var(--line);
+    color:var(--txt);border-radius:8px;padding:10px;font:inherit;outline:none}
+  textarea{resize:vertical;min-height:80px}
+  textarea:focus,input:focus,select:focus{border-color:var(--acc)}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:6px;padding:0;
+    background:var(--panel2);border-radius:99px;border:none;cursor:pointer;margin-top:4px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:18px;height:18px;border-radius:99px;border:2px solid var(--bg);
+    background:linear-gradient(90deg,var(--acc),var(--acc2));cursor:pointer}
+  .row{display:flex;gap:10px}
+  .row>div{flex:1}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .chip{padding:5px 10px;border:1px solid var(--line);border-radius:99px;
+    cursor:pointer;font-size:12px;color:var(--mut)}
+  .chip.on{border-color:var(--acc);color:var(--txt);background:rgba(110,168,254,.12)}
+  .toggle{display:flex;align-items:center;justify-content:space-between;
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-top:8px}
+  .gen{margin-top:18px;width:100%;padding:13px;border:none;border-radius:10px;cursor:pointer;
+    font-weight:700;font-size:15px;color:#0b0d12;
+    background:linear-gradient(90deg,var(--acc),var(--acc2))}
+  .gen:disabled{opacity:.5;cursor:default}
+  .hint{font-size:11px;color:var(--mut);margin-top:6px}
+  .job{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px;margin-bottom:16px}
+  .job .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .job .pr{color:var(--txt);font-size:13px;max-width:72%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .kindtag{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--acc2);margin-right:6px}
+  .badge{font-size:11px;padding:3px 9px;border-radius:99px;background:var(--panel2);color:var(--mut)}
+  .badge.running{color:var(--acc);background:rgba(110,168,254,.12)}
+  .badge.done{color:var(--ok);background:rgba(62,207,142,.12)}
+  .badge.error{color:var(--err);background:rgba(255,107,107,.12)}
+  .bar{height:6px;background:var(--panel2);border-radius:99px;margin-top:10px;overflow:hidden}
+  .bar>i{display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .25s}
+  .bar.indet>i{width:35% !important;animation:slide 1.1s infinite ease-in-out}
+  @keyframes slide{0%{margin-left:-35%}100%{margin-left:100%}}
+  .meta{font-size:11px;color:var(--mut);margin-top:8px;display:flex;gap:14px;flex-wrap:wrap}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:8px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .card img{width:100%;display:block;aspect-ratio:1;object-fit:cover;background:var(--panel2);cursor:pointer}
+  .card .cap{padding:8px 10px;font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card.audio{padding:14px}
+  .card.audio .ico{font-size:26px}
+  .card.audio audio{width:100%;margin-top:8px}
+  h3{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin:0 0 12px}
+  .empty{color:var(--mut);text-align:center;padding:60px 20px}
+  .mcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:13px;display:flex;flex-direction:column;gap:6px}
+  .mcard .mname{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mcard .mauth{font-size:11px;color:var(--mut)}
+  .mcard .mmeta{font-size:11px;color:var(--mut);display:flex;gap:10px;flex-wrap:wrap;margin-top:2px}
+  .cbadge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;align-self:flex-start;text-transform:uppercase;letter-spacing:.4px}
+  .cbadge.dropin,.cbadge.lora{color:var(--ok);background:rgba(62,207,142,.13)}
+  .cbadge.convert,.cbadge.maybe{color:#f5b342;background:rgba(245,179,66,.13)}
+  .cbadge.unsupported{color:var(--err);background:rgba(255,107,107,.12)}
+  .ibtn{margin-top:6px;padding:8px;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px;
+    color:#0b0d12;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+  .ibtn:disabled{opacity:.4;cursor:default;background:var(--panel2);color:var(--mut)}
+  .ibtn.secondary{background:var(--panel2);color:var(--txt)}
+  .mthumb{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:8px;background:var(--panel2)}
+  .lb{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;
+    justify-content:center;z-index:50;padding:30px}
+  .lb.on{display:flex}
+  .lb img{max-width:80vw;max-height:80vh;border-radius:10px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">MLX <span>Creator</span></div>
+  <div class="tagline">image · music · video · all local on Apple Silicon</div>
+  <div class="tabs">
+    <div class="tab active" data-tab="image">Image</div>
+    <div class="tab" data-tab="music">Music</div>
+    <div class="tab" data-tab="video">Video</div>
+    <div class="tab" data-tab="models">+ Models</div>
+  </div>
+  <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">connecting…</span></div>
+</header>
+
+<main>
+  <section class="controls">
+    <!-- IMAGE -->
+    <div class="panel active" id="panel-image">
+      <label>Prompt</label>
+      <textarea id="i_prompt" placeholder="a cinematic photo of a fox in a snowy forest, golden hour…"></textarea>
+      <label>Model</label>
+      <select id="i_model"></select>
+      <label>Negative prompt <span style="font-weight:400">(SD3.5; Flux ignores)</span></label>
+      <textarea id="i_neg" style="min-height:44px" placeholder="blurry, low quality, distorted"></textarea>
+      <label>Size</label>
+      <div class="chips" id="sizeChips"></div>
+      <div class="row" style="margin-top:8px">
+        <div><input id="i_w" type="number" step="16" value="1024" /></div>
+        <div><input id="i_h" type="number" step="16" value="1024" /></div>
+      </div>
+      <div class="row">
+        <div><label>Steps</label><input id="i_steps" type="number" value="4" /></div>
+        <div><label>Guidance</label><input id="i_guidance" type="number" step="0.5" value="0" /></div>
+      </div>
+      <label>Seed</label>
+      <input id="i_seed" type="number" placeholder="random" />
+      <div class="toggle"><span>4-bit quantize</span>
+        <input id="i_quant" type="checkbox" checked style="width:auto" /></div>
+      <button class="gen" id="i_btn">Generate Image</button>
+      <div class="hint">schnell: 4 steps · guidance 0. All local, offline, MLX.</div>
+    </div>
+
+    <!-- MUSIC -->
+    <div class="panel" id="panel-music">
+      <label>Model</label>
+      <select id="m_model"></select>
+      <label>Style / prompt</label>
+      <textarea id="m_prompt" placeholder="upbeat synthwave, driving bassline, retro drums…"></textarea>
+      <label>Lyrics <span style="font-weight:400">(blank = instrumental)</span></label>
+      <textarea id="m_lyrics" placeholder="[Verse]&#10;…&#10;[Chorus]&#10;…"></textarea>
+      <label>Thinking model <span style="font-weight:400">(5Hz LM planner)</span></label>
+      <select id="m_lm">
+        <option value="0.6B">0.6B — fast (plans BPM/key/structure)</option>
+        <option value="4B">4B — higher quality, slower</option>
+      </select>
+      <div class="row">
+        <div><label>Duration (s)</label><input id="m_duration" type="number" value="30" /></div>
+        <div><label>Vocal lang</label>
+          <select id="m_lang">
+            <option value="unknown">auto</option><option value="en">en</option>
+            <option value="zh">zh</option><option value="ja">ja</option>
+            <option value="ko">ko</option><option value="es">es</option>
+          </select></div>
+      </div>
+      <div class="row">
+        <div><label>Steps</label><input id="m_steps" type="number" value="20" /></div>
+        <div><label>Guidance</label><input id="m_guidance" type="number" step="0.5" value="1" /></div>
+        <div><label>Shift</label><input id="m_shift" type="number" step="1" value="3" /></div>
+      </div>
+      <label>Seed</label>
+      <input id="m_seed" type="number" placeholder="random" />
+      <button class="gen" id="m_btn">Generate Music</button>
+      <div class="hint">ACE-Step 1.5 · 48kHz stereo. 20 steps for vocals, 8 ok for instrumental. ~1× realtime.</div>
+    </div>
+
+    <!-- VIDEO -->
+    <div class="panel" id="panel-video">
+      <label>Model</label>
+      <select id="v_model"></select>
+      <label>Prompt</label>
+      <textarea id="v_prompt" placeholder="a drone shot flying over misty mountains at sunrise, cinematic…"></textarea>
+      <label>Negative prompt <span style="font-weight:400">(optional)</span></label>
+      <textarea id="v_neg" style="min-height:50px" placeholder="blurry, low quality, distorted"></textarea>
+      <label>Size</label>
+      <div class="chips" id="vsizeChips"></div>
+      <div class="row" style="margin-top:8px">
+        <div><input id="v_w" type="number" step="32" value="704" /></div>
+        <div><input id="v_h" type="number" step="32" value="480" /></div>
+      </div>
+      <label>Duration <span id="v_durval" style="color:var(--txt);font-weight:700">2.0s</span></label>
+      <input id="v_duration" type="range" min="1" max="30" step="0.5" value="2" />
+      <div class="hint" id="v_durhint"></div>
+      <div class="row">
+        <div><label>Steps</label><input id="v_steps" type="number" value="20" /></div>
+        <div><label>Guidance</label><input id="v_guidance" type="number" step="0.5" value="3.5" /></div>
+        <div><label>Seed</label><input id="v_seed" type="number" placeholder="random" /></div>
+      </div>
+      <button class="gen" id="v_btn">Generate Video</button>
+      <div class="hint">Wan 2.2 TI2V-5B · 24fps. Frames 25/49/81. Video gen is heavy — start small (704×480, 49 frames).</div>
+    </div>
+
+    <!-- MODELS (browse/install) -->
+    <div class="panel" id="panel-models">
+      <label>Source</label>
+      <div class="chips" id="srcChips">
+        <div class="chip on" data-src="huggingface">HuggingFace</div>
+        <div class="chip" data-src="civitai">Civitai (LoRA)</div>
+      </div>
+      <div id="modalityWrap">
+        <label>Type</label>
+        <select id="b_modality">
+          <option value="image">Image</option>
+          <option value="audio">Audio</option>
+          <option value="video">Video</option>
+        </select>
+      </div>
+      <label>Search</label>
+      <input id="b_query" placeholder="e.g. flux, wan, ace-step…" />
+      <button class="gen" id="b_btn">Search</button>
+      <div class="hint">HuggingFace shows MLX models only. Badges: <b style="color:var(--ok)">drop-in</b> = installs &amp; runs · <b>convert/unsupported</b> = not loadable here.</div>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div id="jobs"></div>
+    <!-- generation gallery -->
+    <div id="gallerySection">
+      <h3>Gallery</h3>
+      <div class="grid" id="grid"></div>
+      <div class="empty" id="emptyGrid">Nothing yet — generate something.</div>
+    </div>
+    <!-- models browse results -->
+    <div id="modelsSection" style="display:none">
+      <h3 id="browseTitle">Search results</h3>
+      <div class="grid" id="browseGrid"></div>
+      <div class="empty" id="browseEmpty">Search HuggingFace or Civitai above.</div>
+      <h3 style="margin-top:24px">Installed</h3>
+      <div class="grid" id="installedGrid"></div>
+    </div>
+  </section>
+</main>
+
+<div class="lb" id="lb"><img id="lbImg" /></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const jobsEl = $("#jobs"), gridEl = $("#grid");
+
+// tabs
+document.querySelectorAll(".tab[data-tab]").forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+    $("#panel-"+t.dataset.tab).classList.add("active");
+    const models = t.dataset.tab==="models";
+    $("#modelsSection").style.display = models?"block":"none";
+    $("#gallerySection").style.display = models?"none":"block";
+    if(models) loadInstalled();
+  };
+});
+
+// image size presets
+const SIZES=[["512²",512,512],["768²",768,768],["1024²",1024,1024],
+             ["1024×1536",1024,1536],["1536×1024",1536,1024]];
+const chips=$("#sizeChips");
+SIZES.forEach(([lbl,w,h])=>{
+  const c=document.createElement("div");
+  c.className="chip"+(lbl==="1024²"?" on":""); c.textContent=lbl;
+  c.onclick=()=>{$("#i_w").value=w;$("#i_h").value=h;
+    [...chips.children].forEach(x=>x.classList.toggle("on",x.textContent===lbl));};
+  chips.appendChild(c);
+});
+$("#i_model").onchange=e=>{
+  const o=e.target.selectedOptions[0]; const eng=o?.dataset.engine, arch=o?.dataset.arch||"schnell";
+  if(eng==="sd35"){ $("#i_steps").value=20; $("#i_guidance").value=4.5; }
+  else if(eng==="qwen"){ $("#i_steps").value=20; $("#i_guidance").value=4.0; }
+  else { $("#i_steps").value = arch==="schnell"?4:25; $("#i_guidance").value=0; }
+};
+
+// ---- installed models -> populate tab dropdowns ----
+async function loadInstalled(){
+  const fill=(sel,items,extra)=>{
+    const cur=sel.value;
+    sel.innerHTML=items.map(m=>`<option value="${m.id}" data-arch="${m.arch||''}" data-engine="${m.engine||''}">${esc(m.display||m.id)}</option>`).join("");
+    if(extra&&!items.length) sel.innerHTML=`<option value="">${extra}</option>`;
+    if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
+  };
+  try{
+    const [img,aud,vid]=await Promise.all([
+      fetch("/api/installed?modality=image").then(r=>r.json()),
+      fetch("/api/installed?modality=audio").then(r=>r.json()),
+      fetch("/api/installed?modality=video").then(r=>r.json())]);
+    // each tab only drives one engine family
+    fill($("#i_model"), img.filter(m=>["flux","sd35","qwen"].includes(m.engine)));
+    fill($("#m_model"), aud.filter(m=>m.engine==="ace_step"));
+    fill($("#v_model"), vid.filter(m=>m.engine==="wan"));
+    // installed grid (models tab)
+    const all=[...img,...aud,...vid];
+    const ig=$("#installedGrid");
+    if(ig) ig.innerHTML=all.map(m=>`<div class="mcard">
+        <div class="mname">${esc(m.display||m.id)}</div>
+        <div class="mauth">${m.modality} · ${m.engine}${m.arch?(' · '+m.arch):''}</div>
+        <span class="cbadge dropin">installed</span></div>`).join("")
+      ||`<div class="empty" style="grid-column:1/-1">No models yet.</div>`;
+  }catch(e){}
+}
+
+// ---- browse / install ----
+let browseSrc="huggingface";
+document.querySelectorAll("#srcChips .chip").forEach(c=>{
+  c.onclick=()=>{
+    document.querySelectorAll("#srcChips .chip").forEach(x=>x.classList.remove("on"));
+    c.classList.add("on"); browseSrc=c.dataset.src;
+    $("#modalityWrap").style.display = browseSrc==="civitai"?"none":"block";
+    doBrowse();
+  };
+});
+$("#b_btn").onclick=doBrowse;
+$("#b_query").addEventListener("keydown",e=>{if(e.key==="Enter")doBrowse();});
+
+async function doBrowse(){
+  const mod=$("#b_modality").value, q=$("#b_query").value.trim();
+  $("#browseTitle").textContent="Searching…";
+  const url=`/api/browse?source=${browseSrc}&modality=${mod}&q=${encodeURIComponent(q)}`;
+  let items=[]; try{items=await (await fetch(url)).json();}catch(e){}
+  $("#browseEmpty").style.display=items.length?"none":"block";
+  $("#browseTitle").textContent=`${items.length} result${items.length===1?'':'s'} — ${browseSrc==='civitai'?'Civitai LoRAs':'HuggingFace MLX'}`;
+  $("#browseGrid").innerHTML=items.map(renderBrowseCard).join("");
+}
+
+function renderBrowseCard(r){
+  const compat=r.compat||"unknown";
+  const installable = ["drop-in","lora","maybe"].includes(compat);
+  const cls = compat==="drop-in"?"dropin":compat;
+  const thumb = r.thumb?`<img class="mthumb" src="${r.thumb}" loading="lazy"/>`:"";
+  const size = r.size_gb?`${r.size_gb}GB`:"";
+  const dl = r.downloads?`↓${r.downloads.toLocaleString()}`:"";
+  const payload = encodeURIComponent(JSON.stringify(r));
+  return `<div class="mcard">${thumb}
+    <div class="mname">${esc(r.name)}</div>
+    <div class="mauth">${esc(r.author||'')} ${r.base_model?('· '+esc(r.base_model)):''}</div>
+    <span class="cbadge ${cls}">${compat}${r.note?(' · '+esc(r.note)):''}</span>
+    <div class="mmeta"><span>${size}</span><span>${dl}</span></div>
+    <button class="ibtn" ${installable?'':'disabled'} onclick='doInstall("${payload}",this)'>
+      ${installable?'Install':'Not loadable here'}</button></div>`;
+}
+
+async function doInstall(payload,btn){
+  const r=JSON.parse(decodeURIComponent(payload));
+  btn.disabled=true; btn.textContent="Queued…";
+  if(r.source==="civitai"){ alert("LoRA install lands in the next phase."); btn.disabled=false; btn.textContent="Install"; return; }
+  await fetch("/api/install",{method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({repo:r.id,modality:r.modality,engine:r.engine,arch:r.arch,display:r.name})});
+}
+
+// video duration -> frames (24fps, snapped to nearest 4n+1, mirrors backend)
+const VFPS=24;
+const snapFrames=n=>Math.max(1,Math.round((n-1)/4))*4+1;
+function updateDurHint(){
+  const s=+$("#v_duration").value||0;
+  const f=snapFrames(Math.round(s*VFPS));
+  $("#v_durval").textContent=`${s.toFixed(1)}s`;
+  let h=`≈ ${f} frames · ${(f/VFPS).toFixed(2)}s actual @ ${VFPS}fps`;
+  if(f>=121) h+=" · ⚠ long render (minutes) + high RAM";
+  $("#v_durhint").textContent=h;
+}
+$("#v_duration")&&($("#v_duration").oninput=updateDurHint);
+
+// video size presets
+const VSIZES=[["512×320",512,320],["704×480",704,480],["832×480",832,480],["1280×704",1280,704]];
+const vchips=$("#vsizeChips");
+VSIZES.forEach(([lbl,w,h])=>{
+  const c=document.createElement("div");
+  c.className="chip"+(lbl==="704×480"?" on":""); c.textContent=lbl;
+  c.onclick=()=>{$("#v_w").value=w;$("#v_h").value=h;
+    [...vchips.children].forEach(x=>x.classList.toggle("on",x.textContent===lbl));};
+  vchips.appendChild(c);
+});
+
+const esc=s=>(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const jobViews={};
+function renderJob(j){
+  let el=jobViews[j.id];
+  if(!el){el=document.createElement("div");el.className="job";jobViews[j.id]=el;jobsEl.prepend(el);}
+  const pct=Math.round((j.progress||0)*100), stat=j.status||"queued";
+  const music=j.kind==="music", video=j.kind==="video", install=j.kind==="install";
+  const indet = (music||video) && stat==="running";   // no per-step % from these
+  const stepTxt = install&&stat==="running" ? `downloading ${pct}%`
+    : (j.step?`step ${j.step}/${j.total}`:(j.stage||stat));
+  let meta;
+  if(j.error){ meta=`<span style="color:var(--err)">${esc(j.error)}</span>`; }
+  else if(install){
+    meta=`<span>installing ${esc(j.repo||'')}</span>`;
+    if(j.result) meta+=`<span>${j.result.size_gb}GB</span><span>→ ${j.result.modality} tab</span>`;
+  }
+  else if(video){
+    const dur=j.result?`${j.result.duration_s}s · ${j.result.num_frames}f`:`${j.duration}s`;
+    meta=`<span>${j.width}×${j.height}</span><span>${dur} @24fps</span><span>${j.steps} steps</span>`;
+    if(j.result) meta+=`<span>${j.result.gen_s}s gen</span><span>${j.result.peak_gb}GB</span><span>${j.result.size_mb}MB</span>`;
+  }
+  else if(music){
+    meta=`<span>${j.duration}s</span><span>${j.steps} steps</span><span>🧠 ${j.lm_size||"0.6B"}</span>`;
+    if(j.result){
+      meta+=`<span>${j.result.gen_s}s gen</span><span>RTF ${j.result.rtf}×</span><span>${j.result.peak_gb}GB</span>`;
+      const t=j.result.thinking||{};
+      const bits=[t.bpm&&`${t.bpm} BPM`,t.keyscale,t.genres,t.timesignature&&`${t.timesignature}/4`].filter(Boolean);
+      if(bits.length) meta+=`<span style="color:var(--acc2);width:100%;margin-top:4px">🧠 ${esc(bits.join(" · "))}</span>`;
+    }
+  } else {
+    meta=`<span>${j.model} · ${j.width}×${j.height}</span><span>${j.steps||"–"} steps</span>`;
+    if(j.result) meta+=`<span>${j.result.gen_s}s gen</span><span>${j.result.peak_gb}GB</span><span>seed ${j.result.seed}</span>`;
+  }
+  let media="";
+  if(stat==="done"&&j.result&&!install){
+    const url="/outputs/"+j.result.filename;
+    media = video
+      ? `<video controls preload="metadata" src="${url}" style="width:100%;margin-top:10px;border-radius:8px;max-height:320px"></video>`
+      : music
+      ? `<audio controls preload="none" src="${url}" style="width:100%;margin-top:10px"></audio>`
+      : `<img src="${url}" onclick="openLB('${url}')" style="margin-top:10px;max-height:240px;border-radius:8px;cursor:pointer"/>`;
+  }
+  const kind=install?"install":video?"video":music?"music":"image";
+  el.innerHTML=
+    `<div class="top"><div class="pr"><span class="kindtag">${kind}</span>${esc(j.prompt)}</div>
+       <span class="badge ${stat}">${stepTxt}</span></div>
+     <div class="bar ${indet?'indet':''}"><i style="width:${stat==='done'?100:pct}%"></i></div>
+     <div class="meta">${meta}</div>${media}`;
+  if(stat==="done"&&!el.dataset.done){
+    el.dataset.done="1";
+    if(install){loadInstalled();} else {loadGallery();}
+  }
+}
+
+async function loadGallery(){
+  const items=await (await fetch("/api/gallery")).json();
+  $("#emptyGrid").style.display=items.length?"none":"block";
+  gridEl.innerHTML=items.map(it=>
+    it.type==="video"
+      ? `<div class="card"><video controls preload="metadata" src="${it.url}" style="width:100%;display:block;background:#000"></video>
+           <div class="cap">${esc(it.filename)}</div></div>`
+      : it.type==="audio"
+      ? `<div class="card audio"><div class="ico">🎵</div>
+           <div class="cap">${esc(it.filename)}</div>
+           <audio controls preload="none" src="${it.url}"></audio></div>`
+      : `<div class="card"><img loading="lazy" src="${it.url}" onclick="openLB('${it.url}')" />
+           <div class="cap">${esc(it.filename)}</div></div>`
+  ).join("");
+}
+function openLB(u){$("#lbImg").src=u;$("#lb").classList.add("on");}
+$("#lb").onclick=()=>$("#lb").classList.remove("on");
+
+function debounceBtn(b){b.disabled=true;setTimeout(()=>b.disabled=false,800);}
+
+$("#i_btn").onclick=async()=>{
+  const body={prompt:$("#i_prompt").value.trim(),model:$("#i_model").value,
+    negative_prompt:$("#i_neg").value,
+    steps:+$("#i_steps").value||null,guidance:+$("#i_guidance").value,
+    width:+$("#i_w").value,height:+$("#i_h").value,
+    seed:$("#i_seed").value===""?null:+$("#i_seed").value,quantize:$("#i_quant").checked};
+  if(!body.prompt){$("#i_prompt").focus();return;}
+  debounceBtn($("#i_btn"));
+  await fetch("/api/generate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+};
+
+$("#m_btn").onclick=async()=>{
+  const body={prompt:$("#m_prompt").value.trim(),lyrics:$("#m_lyrics").value,
+    model:$("#m_model").value,
+    duration:+$("#m_duration").value,steps:+$("#m_steps").value,
+    guidance:+$("#m_guidance").value,shift:+$("#m_shift").value,
+    vocal_language:$("#m_lang").value,lm_size:$("#m_lm").value,
+    seed:$("#m_seed").value===""?null:+$("#m_seed").value};
+  if(!body.prompt){$("#m_prompt").focus();return;}
+  debounceBtn($("#m_btn"));
+  await fetch("/api/generate_music",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+};
+
+$("#v_btn").onclick=async()=>{
+  const body={prompt:$("#v_prompt").value.trim(),
+    negative_prompt:$("#v_neg").value.trim()||null,
+    model:$("#v_model").value,
+    width:+$("#v_w").value,height:+$("#v_h").value,
+    duration:+$("#v_duration").value,steps:+$("#v_steps").value,
+    guidance:$("#v_guidance").value===""?null:+$("#v_guidance").value,
+    seed:$("#v_seed").value===""?-1:+$("#v_seed").value};
+  if(!body.prompt){$("#v_prompt").focus();return;}
+  debounceBtn($("#v_btn"));
+  await fetch("/api/generate_video",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+};
+
+let ws;
+function connect(){
+  ws=new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen=()=>{$("#dot").classList.add("on");$("#statusTxt").textContent="connected";};
+  ws.onclose=()=>{$("#dot").classList.remove("on");$("#statusTxt").textContent="reconnecting…";setTimeout(connect,1500);};
+  ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==="job")renderJob(m.job);};
+}
+async function checkPlanners(){
+  try{
+    const m=await (await fetch("/api/models")).json();
+    const p=(m.acestep&&m.acestep.planners)||{};
+    const opt=[...$("#m_lm").options].find(o=>o.value==="4B");
+    if(opt&&!p["4B"]){opt.disabled=true;opt.textContent="4B — downloading… (using 0.6B)";}
+    else if(opt){opt.disabled=false;opt.textContent="4B — higher quality, slower";}
+  }catch(e){}
+}
+connect();loadGallery();checkPlanners();setInterval(checkPlanners,15000);updateDurHint();loadInstalled();
+</script>
+</body>
+</html>

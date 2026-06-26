@@ -1,0 +1,38 @@
+# MLX Creator
+
+Local generative-media studio for Apple Silicon — make **images, music, and video** from one app, fully on-device via [MLX](https://github.com/ml-explore/mlx). No PyTorch, no cloud, runs offline.
+
+It's the "LM Studio" idea applied to generative media: a clean UI + a built-in model browser, with pluggable MLX engines under the hood.
+
+## Engines
+
+| Modality | Models | Runtime |
+|---|---|---|
+| Image | FLUX (schnell/dev), SD3 / SD3.5, Qwen-Image | mlx-examples · DiffusionKit · mflux |
+| Music | ACE-Step 1.5 (incl. 4-bit; 0.6B/4B "thinking" planner) | mlx-audio |
+| Video | Wan 2.2 TI2V-5B (text→video) | mlx-video |
+
+A built-in **Models** tab browses HuggingFace (MLX-only) and Civitai and installs models straight into `models/`, auto-registering them in the right tab.
+
+## Run
+
+```bash
+./setup_venv.sh   # one-time: create the MLX virtualenv (no torch)
+./run.sh          # serve at http://127.0.0.1:8200
+```
+
+Model weights download on first use into `models/` (git-ignored — they're large).
+
+## Layout
+
+```
+backend/    FastAPI server + per-modality MLX engines + model registry
+frontend/   single-file web UI
+vendor/     patched, torch-free copies of mlx-examples, DiffusionKit, mflux
+models/     downloaded weights (not committed)
+outputs/    generated images / audio / video (not committed)
+```
+
+## Notes
+
+Vendored libraries are patched to keep their **MLX inference paths torch-free** (torch only ever lived in their weight-conversion/CLI code). See each `vendor/` subtree for the upstream project and its license.

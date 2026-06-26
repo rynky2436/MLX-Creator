@@ -1,0 +1,16 @@
+# Model weights & generated media — huge, downloaded on demand, not source
+models/
+outputs/
+
+# Python environment
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Vendored third-party VCS metadata (source is kept, .git is not)
+vendor/**/.git/
+
+# misc
+.DS_Store
+*.log
