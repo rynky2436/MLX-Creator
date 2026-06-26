@@ -26,6 +26,29 @@ import video_engine
 import browser
 import registry
 import installer
+import mlx.core as mx
+
+# Keep exactly ONE model resident: switching engine/model frees the previous
+# one and clears MLX's buffer cache; the same model stays loaded between gens.
+_LOADED = {"key": None}
+
+
+def ensure_only_loaded(engine: str, model: str) -> None:
+    key = (engine, model)
+    if _LOADED["key"] == key:
+        return
+    # Drop the previous model's arrays, then return MLX's freed buffer pool to
+    # the OS so RSS actually shrinks on a model switch.
+    for eng in (flux_engine, sd35_engine, music_engine):
+        try:
+            eng.unload()
+        except Exception:
+            pass
+    try:
+        (mx.clear_cache if hasattr(mx, "clear_cache") else mx.metal.clear_cache)()
+    except Exception:
+        pass
+    _LOADED["key"] = key
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS = ROOT / "outputs"
@@ -123,6 +146,7 @@ def worker() -> None:
                     on_progress=on_prog, on_stage=on_stage,
                 )
             elif job["kind"] == "music":
+                ensure_only_loaded("ace_step", job.get("model", "ACE-Step1.5-MLX"))
                 result = music_engine.generate(
                     prompt=job["prompt"], lyrics=job.get("lyrics", ""),
                     duration=job["duration"], steps=job["steps"],
@@ -132,6 +156,7 @@ def worker() -> None:
                     model_id=job.get("model", "ACE-Step1.5-MLX"), on_stage=on_stage,
                 )
             elif job["kind"] == "video":
+                ensure_only_loaded("wan", job.get("model", "Wan2.2-TI2V-5B-MLX"))
                 result = video_engine.generate(
                     prompt=job["prompt"], negative_prompt=job.get("negative_prompt"),
                     width=job["width"], height=job["height"],
@@ -142,6 +167,7 @@ def worker() -> None:
             else:  # image — route by the selected model's engine
                 eng = next((m.get("engine") for m in registry.list_installed("image")
                             if m["id"] == job["model"]), "flux")
+                ensure_only_loaded(eng, job["model"])
                 if eng == "sd35":
                     result = sd35_engine.generate(
                         prompt=job["prompt"], model=job["model"], steps=job["steps"],

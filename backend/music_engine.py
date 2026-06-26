@@ -67,6 +67,15 @@ def get_model(model_id: str = "ACE-Step1.5-MLX"):
     return _MODEL
 
 
+def unload():
+    """Free the cached model (on model switch / shutdown)."""
+    global _MODEL, _MODEL_ID
+    _MODEL = None
+    _MODEL_ID = None
+    import gc
+    gc.collect()
+
+
 def model_status() -> dict:
     return {
         "acestep": {

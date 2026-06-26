@@ -140,6 +140,15 @@ def get_pipeline(model_id: str):
     return _PIPE
 
 
+def unload():
+    """Free the cached pipeline (on model switch / shutdown)."""
+    global _PIPE, _PIPE_KEY
+    _PIPE = None
+    _PIPE_KEY = None
+    import gc
+    gc.collect()
+
+
 def generate(
     *,
     prompt: str,
@@ -155,6 +164,12 @@ def generate(
 ) -> dict:
     height, width = _round16(height), _round16(width)
     latent_size = (height // 8, width // 8)
+
+    # SD3/3.5 are not distilled — they require classifier-free guidance. With
+    # guidance <= 1 DiffusionKit takes a batch-1 fast-path that crashes
+    # (layer_norm weight becomes 2-D), so enforce a sane CFG minimum.
+    if guidance is None or guidance <= 1:
+        guidance = 4.5
 
     if on_stage:
         on_stage("loading model")

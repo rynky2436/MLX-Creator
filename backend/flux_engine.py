@@ -107,6 +107,14 @@ def get_pipeline(model_id: str, arch: str, quantize: bool) -> FluxPipeline:
     return pipe
 
 
+def unload():
+    """Free the cached pipeline (on model switch / shutdown)."""
+    global _PIPE, _PIPE_KEY
+    _PIPE = None
+    _PIPE_KEY = None
+    gc.collect()
+
+
 def _resolve_arch(model_id: str) -> str:
     """schnell|dev for an installed Flux folder (from manifest, else name)."""
     try:

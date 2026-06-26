@@ -30,6 +30,14 @@ fi
 # Normal launch.
 cd "$RUNDIR" || exit 1
 export PORT
+
+# Port guard: if a server is already running on this port, just open the UI
+# instead of starting a duplicate (which would fail to bind and break things).
+if /usr/bin/curl -fsS "http://127.0.0.1:$PORT/api/installed" >/dev/null 2>&1; then
+  /usr/bin/open "http://127.0.0.1:$PORT"
+  exit 0
+fi
+
 ./run.sh > "$RUNDIR/server.log" 2>&1 &
 SRV=$!
 trap 'kill $SRV 2>/dev/null' EXIT INT TERM
