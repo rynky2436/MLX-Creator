@@ -37,22 +37,19 @@ BASE_RECIPES = {
     "image": {
         "display": "FLUX.1 schnell", "modality": "image", "engine": "flux",
         "arch": "schnell", "size_gb": 34, "ready": "flux1-schnell.safetensors",
-        "repos": [("lzyvegetable/FLUX.1-schnell", "FLUX.1-schnell",
-                   ["flux1-schnell.safetensors", "ae.safetensors", "text_encoder/*",
-                    "text_encoder_2/*", "tokenizer/*", "tokenizer_2/*"])],
+        "repos": [("MLXCreator/MLXCreator-Flux-Schnell", "FLUX.1-schnell", None)],
     },
     "music": {
         "display": "ACE-Step 1.5", "modality": "audio", "engine": "ace_step",
         "size_gb": 14, "ready": "model.safetensors",
-        "repos": [("mlx-community/ACE-Step1.5-MLX", "ACE-Step1.5-MLX", None),
-                  ("ACE-Step/acestep-5Hz-lm-0.6B", "acestep-5Hz-lm-0.6B", None)],
+        "repos": [("MLXCreator/MLXCreator-ACEStep-1.5", "ACE-Step1.5-MLX", None),
+                  ("MLXCreator/MLXCreator-ACEStep-Planner-0.6B", "acestep-5Hz-lm-0.6B", None)],
     },
     "video": {
         "display": "Wan 2.2 TI2V-5B", "modality": "video", "engine": "wan",
         "size_gb": 24, "ready": "model.safetensors",
-        "repos": [("SceneWorks/wan2.2-ti2v-5b-mlx", "Wan2.2-TI2V-5B-MLX", None),
-                  ("google/umt5-xxl", "umt5-xxl-tokenizer",
-                   ["tokenizer*", "spiece*", "special_tokens*", "config.json"])],
+        "repos": [("MLXCreator/MLXCreator-Wan2.2-TI2V-5B", "Wan2.2-TI2V-5B-MLX", None),
+                  ("MLXCreator/MLXCreator-UMT5-Tokenizer", "umt5-xxl-tokenizer", None)],
     },
 }
 

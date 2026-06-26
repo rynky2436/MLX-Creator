@@ -78,6 +78,57 @@ def _classify_hf(model_id: str, tags: list[str], siblings: list[str],
     return {"compat": "unknown", "engine": engine, "note": ""}
 
 
+# Our own published models (MLXCreator/*) — surfaced at the top of the browser
+# as official drop-ins. (repo_id, engine, arch). Brand-new repos have ~0
+# downloads + no pipeline_tag, so they'd never rank in the generic search.
+FEATURED = {
+    "image": [
+        ("MLXCreator/MLXCreator-Flux-Schnell", "flux", "schnell"),
+        ("MLXCreator/MLXCreator-SD3.5-Large", "sd35", None),
+        ("MLXCreator/MLXCreator-SD3.5-Large-4bit", "sd35", None),
+        ("MLXCreator/MLXCreator-SD3-Medium", "sd35", None),
+        ("MLXCreator/MLXCreator-QwenImage-4bit", "qwen", None),
+        ("MLXCreator/MLXCreator-QwenImage-8bit", "qwen", None),
+    ],
+    "audio": [
+        ("MLXCreator/MLXCreator-ACEStep-1.5", "ace_step", None),
+        ("MLXCreator/MLXCreator-ACEStep-1.5-4bit", "ace_step", None),
+    ],
+    "video": [
+        ("MLXCreator/MLXCreator-Wan2.2-TI2V-5B", "wan", None),
+    ],
+}
+
+
+def _featured(modality: str, query: str = "") -> list[dict]:
+    items = FEATURED.get(modality, [])
+    if not items:
+        return []
+    try:
+        res = _get("https://huggingface.co/api/models?author=MLXCreator&full=true&limit=100")
+        info = {m["id"]: m for m in res}
+    except Exception:
+        info = {}
+    q = query.lower()
+    out = []
+    for rid, engine, arch in items:
+        if q and q not in rid.lower():
+            continue
+        m = info.get(rid, {})
+        sibs = [s.get("rfilename", "") for s in (m.get("siblings") or [])]
+        size_b = sum(s.get("size") or 0 for s in (m.get("siblings") or []))
+        out.append({
+            "source": "huggingface", "id": rid, "name": rid.split("/")[-1],
+            "author": "MLXCreator", "modality": modality,
+            "downloads": m.get("downloads", 0), "likes": m.get("likes", 0),
+            "size_gb": round(size_b / 1e9, 2) if size_b else None,
+            "url": f"https://huggingface.co/{rid}", "files": len(sibs),
+            "official": True, "compat": "drop-in", "engine": engine, "arch": arch,
+            "note": "MLX Creator — official",
+        })
+    return out
+
+
 def search_hf(modality: str, query: str = "", limit: int = 30) -> list[dict]:
     spec = MODALITIES.get(modality)
     if not spec:
@@ -110,7 +161,10 @@ def search_hf(modality: str, query: str = "", limit: int = 30) -> list[dict]:
                 **cls,
             })
     out.sort(key=lambda x: x["downloads"], reverse=True)
-    return out[:limit]
+    feat = _featured(modality, query)
+    fids = {f["id"] for f in feat}
+    out = [o for o in out if o["id"] not in fids]
+    return (feat + out)[:limit]
 
 
 # ---- Civitai (Flux LoRAs only) ----------------------------------------

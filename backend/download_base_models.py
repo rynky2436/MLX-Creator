@@ -5,7 +5,8 @@
   3. Wan 2.2 TI2V-5B  — video   (+ its umt5 text tokenizer)
 
 Re-running is a no-op for anything already present (snapshot_download skips
-files that exist). No HF login required (all ungated mirrors).
+files that exist). No HF login required — all served from the public
+MLXCreator/* repos.
 """
 import os
 import sys
@@ -23,18 +24,15 @@ MODELS = config.models_dir()
 # label -> list of (repo, dest-folder, allow_patterns or None)
 BASES = {
     "FLUX.1-schnell (image)": [
-        ("lzyvegetable/FLUX.1-schnell", "FLUX.1-schnell",
-         ["flux1-schnell.safetensors", "ae.safetensors", "text_encoder/*",
-          "text_encoder_2/*", "tokenizer/*", "tokenizer_2/*"]),
+        ("MLXCreator/MLXCreator-Flux-Schnell", "FLUX.1-schnell", None),
     ],
     "ACE-Step 1.5 (music)": [
-        ("mlx-community/ACE-Step1.5-MLX", "ACE-Step1.5-MLX", None),
-        ("ACE-Step/acestep-5Hz-lm-0.6B", "acestep-5Hz-lm-0.6B", None),
+        ("MLXCreator/MLXCreator-ACEStep-1.5", "ACE-Step1.5-MLX", None),
+        ("MLXCreator/MLXCreator-ACEStep-Planner-0.6B", "acestep-5Hz-lm-0.6B", None),
     ],
     "Wan 2.2 TI2V-5B (video)": [
-        ("SceneWorks/wan2.2-ti2v-5b-mlx", "Wan2.2-TI2V-5B-MLX", None),
-        ("google/umt5-xxl", "umt5-xxl-tokenizer",
-         ["tokenizer*", "spiece*", "special_tokens*", "config.json"]),
+        ("MLXCreator/MLXCreator-Wan2.2-TI2V-5B", "Wan2.2-TI2V-5B-MLX", None),
+        ("MLXCreator/MLXCreator-UMT5-Tokenizer", "umt5-xxl-tokenizer", None),
     ],
 }
 
