@@ -1,0 +1,29 @@
+MLX Creator — How to open it the first time
+=============================================
+
+MLX Creator isn't signed with a paid Apple Developer certificate, so the FIRST
+time you open it, macOS will say it "cannot be opened" or is from an
+"unidentified developer." This is normal for indie apps. Here's the one-time fix:
+
+STEP 1 — Install
+  Drag the "MLX Creator" icon onto the Applications folder (shown in this window).
+
+STEP 2 — Open it once (pick either method)
+
+  • Easiest — Terminal (Applications ▸ Utilities ▸ Terminal):
+      Paste this line and press Return, then open MLX Creator from Applications:
+
+          xattr -dr com.apple.quarantine "/Applications/MLX Creator.app"
+
+  • Or — Finder:
+      Open your Applications folder, right-click "MLX Creator" and choose Open.
+      If macOS still refuses, go to:
+          System Settings ▸ Privacy & Security
+      scroll down, click "Open Anyway", then launch MLX Creator again.
+
+After this one-time step, MLX Creator opens normally from then on.
+
+FIRST LAUNCH NOTE
+  The first run downloads about 72 GB of models (Flux, ACE-Step 1.5, Wan 2.2)
+  and opens a Terminal window showing progress — keep it open until it finishes.
+  If it's interrupted, just launch MLX Creator again; the download resumes.

@@ -28,6 +28,22 @@ cd MLX-Creator
 resumable; re-running skips anything already present. Grab more models anytime
 from the in-app **Models** tab.
 
+## Desktop app (.dmg)
+
+`packaging/build_dmg.sh` builds **MLX Creator.app** + **MLX-Creator.dmg** (a
+double-click app with a menu/Dock icon; first launch downloads the base models).
+
+The app is **not notarized** (no paid Apple Developer cert), so the first time
+you open it macOS Gatekeeper will block it. Open it once with either:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/MLX Creator.app"
+```
+
+or **right-click the app → Open** (then *System Settings ▸ Privacy & Security ▸
+Open Anyway* if needed). After that it opens normally. The DMG includes a
+`FIRST-LAUNCH.txt` with these steps.
+
 ## Layout
 
 ```
