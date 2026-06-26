@@ -112,6 +112,41 @@ def download_base(base_key: str, on_progress=None, on_stage=None) -> dict:
             "size_gb": round(sum(_dir_size(d) for d in dests) / 1e9, 2)}
 
 
+def download_planner4b(on_progress=None, on_stage=None) -> dict:
+    """Download the optional ACE-Step 4B 'thinking' planner into its companion folder."""
+    from huggingface_hub import snapshot_download
+    import huggingface_hub.constants as hc
+
+    dest = MODELS / "acestep-5Hz-lm-4B"
+    dest.mkdir(parents=True, exist_ok=True)
+    total = 8 * 1e9
+    prev = hc.HF_HUB_OFFLINE
+    hc.HF_HUB_OFFLINE = False
+    stop = {"f": False}
+
+    def poll():
+        while not stop["f"]:
+            if on_progress:
+                on_progress(min(0.99, _dir_size(dest) / total))
+            time.sleep(1.0)
+
+    if on_stage:
+        on_stage("downloading")
+    t = threading.Thread(target=poll, daemon=True)
+    t.start()
+    try:
+        snapshot_download("MLXCreator/MLXCreator-ACEStep-Planner-4B",
+                          local_dir=str(dest), ignore_patterns=_IGNORE, max_workers=8)
+    finally:
+        stop["f"] = True
+        hc.HF_HUB_OFFLINE = prev
+    (dest / "mlxstudio.json").write_text(json.dumps(
+        {"role": "companion", "display": "ACE-Step Planner 4B"}, indent=2))
+    if on_progress:
+        on_progress(1.0)
+    return {"id": "acestep-5Hz-lm-4B", "size_gb": round(_dir_size(dest) / 1e9, 2)}
+
+
 def _repo_size(repo: str) -> int:
     try:
         from huggingface_hub import HfApi

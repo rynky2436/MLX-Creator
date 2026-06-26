@@ -152,6 +152,11 @@ def worker() -> None:
                     _set(_jid, stage="downloading", progress=round(p, 3))
                 result = installer.download_base(
                     job["base"], on_progress=on_prog, on_stage=on_stage)
+            elif job["kind"] == "install_planner":
+                def on_prog(p, _jid=job_id):
+                    _set(_jid, stage="downloading", progress=round(p, 3))
+                result = installer.download_planner4b(
+                    on_progress=on_prog, on_stage=on_stage)
             elif job["kind"] == "music":
                 ensure_only_loaded("ace_step", job.get("model", "ACE-Step1.5-MLX"))
                 result = music_engine.generate(
@@ -361,6 +366,19 @@ async def api_install_base(req: dict):
         emit({"type": "job", "job": JOBS[job_id]})
         ids.append(job_id)
     return {"job_ids": ids}
+
+
+@app.post("/api/install_planner")
+async def api_install_planner():
+    job_id = uuid.uuid4().hex[:12]
+    JOBS[job_id] = {
+        "id": job_id, "kind": "install_planner", "status": "queued",
+        "stage": "queued", "progress": 0.0, "prompt": "ACE-Step Planner 4B",
+        "modality": "audio", "model": "installer", "created_at": time.time(),
+    }
+    JOB_Q.put(job_id)
+    emit({"type": "job", "job": JOBS[job_id]})
+    return {"job_id": job_id}
 
 
 @app.post("/api/install")
