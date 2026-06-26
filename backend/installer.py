@@ -30,6 +30,90 @@ _COMPANIONS = {
 }
 
 
+# The 3 recommended base models, one per modality. Each may be several repos
+# (primary + companions). Sizes are approximate (for the welcome-screen + bar).
+BASE_RECIPES = {
+    "image": {
+        "display": "FLUX.1 schnell", "modality": "image", "engine": "flux",
+        "arch": "schnell", "size_gb": 34, "ready": "flux1-schnell.safetensors",
+        "repos": [("lzyvegetable/FLUX.1-schnell", "FLUX.1-schnell",
+                   ["flux1-schnell.safetensors", "ae.safetensors", "text_encoder/*",
+                    "text_encoder_2/*", "tokenizer/*", "tokenizer_2/*"])],
+    },
+    "music": {
+        "display": "ACE-Step 1.5", "modality": "audio", "engine": "ace_step",
+        "size_gb": 14, "ready": "model.safetensors",
+        "repos": [("mlx-community/ACE-Step1.5-MLX", "ACE-Step1.5-MLX", None),
+                  ("ACE-Step/acestep-5Hz-lm-0.6B", "acestep-5Hz-lm-0.6B", None)],
+    },
+    "video": {
+        "display": "Wan 2.2 TI2V-5B", "modality": "video", "engine": "wan",
+        "size_gb": 24, "ready": "model.safetensors",
+        "repos": [("SceneWorks/wan2.2-ti2v-5b-mlx", "Wan2.2-TI2V-5B-MLX", None),
+                  ("google/umt5-xxl", "umt5-xxl-tokenizer",
+                   ["tokenizer*", "spiece*", "special_tokens*", "config.json"])],
+    },
+}
+
+
+def base_models_status() -> list[dict]:
+    """The 3 base models with install state — for the welcome screen."""
+    out = []
+    for key, rec in BASE_RECIPES.items():
+        prim = MODELS / rec["repos"][0][1]
+        out.append({
+            "key": key, "display": rec["display"], "modality": rec["modality"],
+            "engine": rec["engine"], "size_gb": rec["size_gb"],
+            "installed": (prim / rec["ready"]).exists(),
+        })
+    return out
+
+
+def download_base(base_key: str, on_progress=None, on_stage=None) -> dict:
+    """Download one base recipe (all its repos) with cumulative progress."""
+    from huggingface_hub import snapshot_download
+    import huggingface_hub.constants as hc
+
+    rec = BASE_RECIPES[base_key]
+    dests = [MODELS / d for _, d, _ in rec["repos"]]
+    for d in dests:
+        d.mkdir(parents=True, exist_ok=True)
+    total = rec["size_gb"] * 1e9
+
+    prev = hc.HF_HUB_OFFLINE
+    hc.HF_HUB_OFFLINE = False
+    stop = {"f": False}
+
+    def poll():
+        while not stop["f"]:
+            if on_progress:
+                on_progress(min(0.99, sum(_dir_size(d) for d in dests) / total))
+            time.sleep(1.0)
+
+    if on_stage:
+        on_stage("downloading")
+    t = threading.Thread(target=poll, daemon=True)
+    t.start()
+    try:
+        for repo, dest, allow in rec["repos"]:
+            snapshot_download(repo, local_dir=str(MODELS / dest), allow_patterns=allow,
+                              ignore_patterns=_IGNORE, max_workers=8)
+    finally:
+        stop["f"] = True
+        hc.HF_HUB_OFFLINE = prev
+
+    prim = MODELS / rec["repos"][0][1]
+    meta = {"modality": rec["modality"], "engine": rec["engine"],
+            "display": rec["display"], "role": "model"}
+    if rec.get("arch"):
+        meta["arch"] = rec["arch"]
+    (prim / "mlxstudio.json").write_text(json.dumps(meta, indent=2))
+    if on_progress:
+        on_progress(1.0)
+    return {"id": rec["repos"][0][1], "modality": rec["modality"],
+            "size_gb": round(sum(_dir_size(d) for d in dests) / 1e9, 2)}
+
+
 def _repo_size(repo: str) -> int:
     try:
         from huggingface_hub import HfApi

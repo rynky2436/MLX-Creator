@@ -19,14 +19,21 @@ A built-in **Models** tab browses HuggingFace (MLX-only) and Civitai and install
 ```bash
 git clone https://github.com/rynky2436/MLX-Creator.git
 cd MLX-Creator
-./install.sh      # builds the MLX venv (no torch) + pulls the 3 base models
+./install.sh      # builds the MLX venv (no torch) — quick, no model download
 ./run.sh          # serve at http://127.0.0.1:8200
 ```
 
-`install.sh` downloads the three base models — **Flux** (image), **ACE-Step 1.5**
-(music), **Wan 2.2** (video), ~72 GB total — into `models/` (git-ignored). It's
-resumable; re-running skips anything already present. Grab more models anytime
-from the in-app **Models** tab.
+`install.sh` just builds the environment. On **first launch**, the app shows a
+**welcome screen** to pick which base models to download — **Flux** (image),
+**ACE-Step 1.5** (music), **Wan 2.2** (video) — any, all, or none. A tab only
+appears for a modality once you have a model for it; add/remove more anytime
+from the **Models** tab. Downloads are resumable and live in `models/` (git-ignored).
+
+Prefer to pre-pull all 3 base models up front instead of via the welcome screen:
+
+```bash
+.venv/bin/python backend/download_base_models.py
+```
 
 ## Desktop app (.dmg)
 

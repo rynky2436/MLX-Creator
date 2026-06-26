@@ -19,10 +19,11 @@ fi
 
 echo "→ Building Python environment (MLX, no PyTorch)…"
 ./setup_venv.sh
-source .venv/bin/activate
-
-echo "→ Downloading base models…"
-python backend/download_base_models.py
 
 echo ""
 echo "✓ Install complete. Launch with:  ./run.sh   → http://127.0.0.1:8200"
+echo "  On first launch, the app's welcome screen lets you pick which models to"
+echo "  download (image / music / video) — choose any, all, or none."
+echo ""
+echo "  (Prefer to pre-pull all 3 base models now? run: "
+echo "     .venv/bin/python backend/download_base_models.py )"

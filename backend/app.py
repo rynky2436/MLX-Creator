@@ -145,6 +145,11 @@ def worker() -> None:
                     arch=job.get("arch"), display=job.get("display"),
                     on_progress=on_prog, on_stage=on_stage,
                 )
+            elif job["kind"] == "install_base":
+                def on_prog(p, _jid=job_id):
+                    _set(_jid, stage="downloading", progress=round(p, 3))
+                result = installer.download_base(
+                    job["base"], on_progress=on_prog, on_stage=on_stage)
             elif job["kind"] == "music":
                 ensure_only_loaded("ace_step", job.get("model", "ACE-Step1.5-MLX"))
                 result = music_engine.generate(
@@ -282,6 +287,31 @@ async def api_browse(source: str = "huggingface", modality: str = "image", q: st
 @app.get("/api/installed")
 async def api_installed(modality: str | None = None):
     return registry.list_installed(modality)
+
+
+@app.get("/api/base_models")
+async def api_base_models():
+    return installer.base_models_status()
+
+
+@app.post("/api/install_base")
+async def api_install_base(req: dict):
+    ids = []
+    for base in req.get("bases", []):
+        if base not in installer.BASE_RECIPES:
+            continue
+        rec = installer.BASE_RECIPES[base]
+        job_id = uuid.uuid4().hex[:12]
+        JOBS[job_id] = {
+            "id": job_id, "kind": "install_base", "status": "queued",
+            "stage": "queued", "progress": 0.0, "prompt": rec["display"],
+            "base": base, "modality": rec["modality"], "model": "installer",
+            "created_at": time.time(),
+        }
+        JOB_Q.put(job_id)
+        emit({"type": "job", "job": JOBS[job_id]})
+        ids.append(job_id)
+    return {"job_ids": ids}
 
 
 @app.post("/api/install")

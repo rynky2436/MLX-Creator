@@ -96,6 +96,28 @@
     justify-content:center;z-index:50;padding:30px}
   .lb.on{display:flex}
   .lb img{max-width:80vw;max-height:80vh;border-radius:10px}
+  /* welcome / first-run model picker */
+  .welcome{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;
+    justify-content:center;z-index:60;padding:30px}
+  .welcome.on{display:flex}
+  .wbox{max-width:760px;width:100%;text-align:center}
+  .wlogo{font-weight:700;font-size:28px;margin-bottom:6px}
+  .wlogo span{background:linear-gradient(90deg,var(--acc),var(--acc2));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .wsub{color:var(--mut);font-size:14px;max-width:560px;margin:0 auto 26px}
+  .wcards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+  .wcard{background:var(--panel);border:2px solid var(--line);border-radius:var(--radius);
+    padding:20px 14px;cursor:pointer;transition:border-color .15s,background .15s;position:relative;text-align:center}
+  .wcard.sel{border-color:var(--acc);background:rgba(110,168,254,.10)}
+  .wcard.installed{opacity:.7;cursor:default}
+  .wcard input{position:absolute;top:12px;right:12px;width:18px;height:18px;accent-color:var(--acc)}
+  .wcard .wicon{font-size:34px;margin-bottom:8px}
+  .wcard .wname{font-weight:700;font-size:14px}
+  .wcard .wmeta{font-size:11px;color:var(--mut);margin-top:4px}
+  .wcard .wbar{height:5px;background:var(--panel2);border-radius:99px;margin-top:10px;overflow:hidden;display:none}
+  .wcard .wbar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .3s}
+  .wactions{display:flex;gap:10px;justify-content:center;align-items:center}
+  .wactions .gen{width:auto;padding:12px 28px;margin:0}
 </style>
 </head>
 <body>
@@ -255,6 +277,21 @@
 
 <div class="lb" id="lb"><img id="lbImg" /></div>
 
+<div class="welcome" id="welcome">
+  <div class="wbox">
+    <div class="wlogo">MLX <span>Creator</span></div>
+    <p class="wsub">Pick what you want to create. Each model downloads from Hugging Face
+      into the app — choose any, all, or none. You can add or remove models later
+      from the Models tab. Tabs appear only for what you install.</p>
+    <div class="wcards" id="welcomeCards"></div>
+    <div class="wactions">
+      <button class="gen" id="welcomeInstall">Download selected</button>
+      <button class="ibtn secondary" id="welcomeSkip" style="padding:12px 20px">Skip for now</button>
+    </div>
+    <div class="hint" id="welcomeNote" style="margin-top:14px"></div>
+  </div>
+</div>
+
 <script>
 const $ = s => document.querySelector(s);
 const jobsEl = $("#jobs"), gridEl = $("#grid");
@@ -400,7 +437,7 @@ function renderJob(j){
   let el=jobViews[j.id];
   if(!el){el=document.createElement("div");el.className="job";jobViews[j.id]=el;jobsEl.prepend(el);}
   const pct=Math.round((j.progress||0)*100), stat=j.status||"queued";
-  const music=j.kind==="music", video=j.kind==="video", install=j.kind==="install";
+  const music=j.kind==="music", video=j.kind==="video", install=j.kind==="install"||j.kind==="install_base";
   const indet = (music||video) && stat==="running";   // no per-step % from these
   const stepTxt = install&&stat==="running" ? `downloading ${pct}%`
     : (j.step?`step ${j.step}/${j.total}`:(j.stage||stat));
@@ -444,7 +481,7 @@ function renderJob(j){
      <div class="meta">${meta}</div>${media}`;
   if(stat==="done"&&!el.dataset.done){
     el.dataset.done="1";
-    if(install){loadInstalled();} else {loadGallery();}
+    if(install){loadInstalled(); buildTabs();} else {loadGallery();}
   }
 }
 
@@ -519,7 +556,7 @@ function connect(){
   ws=new WebSocket(`ws://${location.host}/ws`);
   ws.onopen=()=>{$("#dot").classList.add("on");$("#statusTxt").textContent="connected";};
   ws.onclose=()=>{$("#dot").classList.remove("on");$("#statusTxt").textContent="reconnecting…";setTimeout(connect,1500);};
-  ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==="job")renderJob(m.job);};
+  ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==="job"){renderJob(m.job); if(m.job.kind==="install_base") onBaseJob(m.job);}};
 }
 async function checkPlanners(){
   try{
@@ -530,7 +567,79 @@ async function checkPlanners(){
     else if(opt){opt.disabled=false;opt.textContent="4B — higher quality, slower";}
   }catch(e){}
 }
-connect();loadGallery();checkPlanners();setInterval(checkPlanners,15000);updateDurHint();loadInstalled();
+// ---- conditional tabs: show a modality tab only if a model for it exists ----
+async function buildTabs(){
+  const [img,aud,vid]=await Promise.all([
+    fetch('/api/installed?modality=image').then(r=>r.json()),
+    fetch('/api/installed?modality=audio').then(r=>r.json()),
+    fetch('/api/installed?modality=video').then(r=>r.json())]);
+  const avail={
+    image: img.some(m=>['flux','sd35','qwen'].includes(m.engine)),
+    music: aud.some(m=>m.engine==='ace_step'),
+    video: vid.some(m=>m.engine==='wan')};
+  ['image','music','video'].forEach(m=>{
+    const tab=document.querySelector(`.tab[data-tab="${m}"]`);
+    if(tab) tab.style.display = avail[m]?'':'none';
+  });
+  const at=document.querySelector('.tab.active');
+  if(!at || at.style.display==='none'){
+    const first=['image','music','video'].find(m=>avail[m]) || 'models';
+    document.querySelector(`.tab[data-tab="${first}"]`)?.click();
+  }
+  return avail;
+}
+
+// ---- welcome / first-run base-model picker ----
+const W_ICON={image:'🖼️',audio:'🎵',video:'🎬'};
+let welcomeBases=[], welcomeState={};
+async function loadWelcomeCards(){
+  const bases=await (await fetch('/api/base_models')).json();
+  $('#welcomeCards').innerHTML=bases.map(b=>`
+    <label class="wcard ${b.installed?'installed':''}" data-base="${b.key}">
+      <input type="checkbox" class="wchk" value="${b.key}" ${b.installed?'checked disabled':''}/>
+      <div class="wicon">${W_ICON[b.modality]||'•'}</div>
+      <div class="wname">${esc(b.display)}</div>
+      <div class="wmeta">${b.modality} · ~${b.size_gb} GB${b.installed?' · installed':''}</div>
+      <div class="wbar"><i></i></div>
+    </label>`).join('');
+  document.querySelectorAll('#welcomeCards .wchk').forEach(c=>{
+    const card=c.closest('.wcard'); const sync=()=>card.classList.toggle('sel',c.checked);
+    sync(); c.onchange=sync;
+  });
+}
+async function showWelcomeIfNeeded(){
+  const avail=await buildTabs();
+  if(!avail.image && !avail.music && !avail.video){ await loadWelcomeCards(); $('#welcome').classList.add('on'); }
+  else $('#welcome').classList.remove('on');
+}
+function onBaseJob(j){
+  if(!welcomeBases.includes(j.base)) return;
+  welcomeState[j.base]={status:j.status,progress:j.progress||0};
+  const card=document.querySelector(`#welcomeCards .wcard[data-base="${j.base}"]`);
+  if(card){
+    const bar=card.querySelector('.wbar'); bar.style.display='block';
+    bar.querySelector('i').style.width=(j.status==='done'?100:Math.round((j.progress||0)*100))+'%';
+    const meta=card.querySelector('.wmeta');
+    meta.textContent = j.status==='done'?'✓ installed' : j.status==='error'?'error'
+      : `downloading… ${Math.round((j.progress||0)*100)}%`;
+  }
+  if(j.status==='done'){ loadInstalled(); buildTabs(); }
+  if(welcomeBases.every(b=>['done','error'].includes((welcomeState[b]||{}).status))){
+    setTimeout(()=>{ loadInstalled(); buildTabs(); $('#welcome').classList.remove('on'); }, 900);
+  }
+}
+$('#welcomeInstall').onclick=async()=>{
+  const sel=[...document.querySelectorAll('#welcomeCards .wchk:checked:not(:disabled)')].map(c=>c.value);
+  if(!sel.length){ $('#welcomeNote').textContent='Pick at least one model, or Skip for now.'; return; }
+  welcomeBases=sel; welcomeState={};
+  $('#welcomeInstall').disabled=true; $('#welcomeSkip').style.display='none';
+  document.querySelectorAll('#welcomeCards .wchk').forEach(c=>c.disabled=true);
+  $('#welcomeNote').textContent='Downloading from Hugging Face… tabs appear as each model finishes. You can leave this open.';
+  await fetch('/api/install_base',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bases:sel})});
+};
+$('#welcomeSkip').onclick=()=>$('#welcome').classList.remove('on');
+
+connect();loadGallery();checkPlanners();setInterval(checkPlanners,15000);updateDurHint();loadInstalled();showWelcomeIfNeeded();
 </script>
 </body>
 </html>

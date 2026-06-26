@@ -9,7 +9,9 @@ APP_SUPPORT="$HOME/Library/Application Support/MLX Creator"
 DEV="$HOME/mlx-studio"
 PORT="${PORT:-8200}"
 
-ready() { [ -x "$1/.venv/bin/python" ] && [ -f "$1/models/FLUX.1-schnell/flux1-schnell.safetensors" ]; }
+# "Ready" = the venv exists. Models are NOT required to start — the app's
+# welcome screen lets the user pick/download base models on first run.
+ready() { [ -x "$1/.venv/bin/python" ]; }
 
 # Prefer an existing install (Application Support, then a dev checkout) to avoid
 # re-downloading; otherwise do first-run setup.
